@@ -4,14 +4,28 @@ const NodeCache = require('node-cache');
 const nameToImdb = require('name-to-imdb');
 const getImdbIdAsync = promisify(nameToImdb);
 const he = require('he');
-
+// Global error handler for unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 // Cache setup (TTL: 24 hours)
 const cache = new NodeCache({ stdTTL: 86400, checkperiod: 3600, useClones: false, });
 
 const supportedLanguages = [
     "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Bengali", "Bhojpuri", "Punjabi", "Urdu", "English", "Spanish", "French", "German", "Italian"
 ];
+// Render Refresh Start
+const renderUrl = 'https://binged-stremio.onrender.com';
+const interval = 10 * 60 * 1000; // 10 minutes in milliseconds
+const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Karachi', timeZoneName: 'long' };
 
+setInterval(() => {
+  const date = new Date();
+  axios.get(renderUrl)
+    .then(res => console.info(`Reloaded at ${date.toLocaleString('en-US', options)}: Status ${res.status}`))
+    .catch(err => console.error(`Error at ${date.toLocaleString('en-US', options)}: (${err.message})`));
+}, interval);
+// Render Refresh End
 const builder = new addonBuilder({
     id: 'com.binged.latest',
     version: '1.0.0',
