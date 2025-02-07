@@ -30,8 +30,8 @@ setInterval(() => {
 const builder = new addonBuilder({
     id: 'com.binged.latest',
     version: '1.0.0',
-    name: 'Latest OTT Releases Catalog for Movies and TV Shows',
-    description: 'Provides the latest movies and TV shows from Binged.com by Asaddon',
+    name: 'Binged! OTT Releases Catalog',
+    description: 'Provides the latest OTT movies and TV shows catalog available to stream on streaming platforms from Binged.com by Asaddon',
     catalogs: [
         { id: 'binged-latest', type: 'movie', name: 'Binged - Latest', extra: [{ name: 'language', isRequired: false, options: supportedLanguages }] },
         { id: 'binged-latest', type: 'series', name: 'Binged - Latest', extra: [{ name: 'language', isRequired: false, options: supportedLanguages }] }
