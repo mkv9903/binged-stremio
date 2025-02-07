@@ -21,11 +21,12 @@ const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit
 
 setInterval(() => {
   const date = new Date();
-  axios.get(renderUrl)
-    .then(res => console.info(`Reloaded at ${date.toLocaleString('en-US', options)}: Status ${res.status}`))
+  fetch(renderUrl)
+    .then(res => console.info(`Reloaded at ${date.toLocaleString('en-US', options)}: Status ${res.ok ? res.status : 'Error'}`))
     .catch(err => console.error(`Error at ${date.toLocaleString('en-US', options)}: (${err.message})`));
 }, interval);
 // Render Refresh End
+
 const builder = new addonBuilder({
     id: 'com.binged.latest',
     version: '1.0.0',
@@ -106,6 +107,18 @@ function decodeTitle(title) {
     return he.decode(title);
 }
 
+// Helper function to format the release date
+function formatReleaseDate(releaseDate) {
+    if (!releaseDate) return null;
+
+    const date = new Date(releaseDate);
+    if (isNaN(date)) return null;  // If it's an invalid date
+
+    // Format the date to 'DD MMM YYYY' (e.g., '07 Feb 2025')
+    const options = { year: 'numeric', month: 'short', day: '2-digit' };
+    return date.toLocaleDateString('en-GB', options);
+}
+
 // Fetch and cache global data
 async function fetchAndCacheGlobalData(type) {
     const cacheKey = `global-${type}`;
@@ -139,7 +152,7 @@ async function fetchAndCacheGlobalData(type) {
                     id, type, name: decodeTitle(item.title),
                     poster, posterShape: 'poster', background,
                     description: meta?.description || `${item.title} (${item['release-year']}) - ${item.genre}`,
-                    releaseInfo: meta?.released || item['streaming-date'],
+                    releaseInfo: formatReleaseDate(item['releaseInfo']) || item['streaming-date'],  // Format releaseInfo here
                     genres: meta?.genres || item.genre.split(', '),
                     languages: item.languages ? item.languages.split(', ') : [],
                     cast: meta?.cast || [], director: meta?.director || [], writer: meta?.writer || [],
