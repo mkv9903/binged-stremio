@@ -8,8 +8,8 @@ const he = require('he');
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-// Cache setup (TTL: 24 hours)
-const cache = new NodeCache({ stdTTL: 86400, checkperiod: 3600, useClones: false, });
+// Cache setup (TTL: 12 hours)
+const cache = new NodeCache({ stdTTL: 43200, checkperiod: 3600, useClones: false });
 
 const supportedLanguages = [
     "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Abkhazian", "Afar", "Afrikaans", "Akan", "Albanian", "Amharic", "Arabic", "Aragonese", "Armenian", "Assamese", "Avaric", "Avestan", "Aymara", "Azerbaijani", "Bambara", "Bashkir", "Basque", "Belarusian", "Bengali", "Bhojpuri", "Bislama", "Bosnian", "Breton", "Bulgarian", "Burmese", "Cantonese", "Catalan", "Chamorro", "Chechen", "Chichewa", "Chuvash", "Cornish", "Corsican", "Cree", "Croatian", "Czech", "Danish", "Divehi", "Dutch", "Dzongkha", "English", "Esperanto", "Estonian", "Ewe", "Faroese", "Fijian", "Finnish", "French", "Frisian", "Fulah", "Gaelic", "Galician", "Ganda", "Georgian", "German", "Greek", "Guarani", "Gujarati", "Haitian", "Haryanvi", "Hausa", "Hebrew", "Herero", "Hiri Motu", "Hungarian", "Icelandic", "Ido", "Igbo", "Indonesian", "Interlingua", "Interlingue", "Inuktitut", "Inupiaq", "Irish", "Italian", "Japanese", "Javanese", "Kalaallisut", "Kanuri", "Kashmiri", "Kazakh", "Khmer", "Kikuyu", "Kinyarwanda", "Kirghiz", "Komi", "Kongo", "Korean", "Kuanyama", "Kurdish", "Lao", "Latin", "Latvian", "Letzeburgesch", "Limburgish", "Lingala", "Lithuanian", "Luba-Katanga", "Macedonian", "Malagasy", "Malay", "Maltese", "Mandarin", "Manipuri", "Manx", "Maori", "Marathi", "Marshall", "Moldavian", "Mongolian", "Nauru", "Navajo", "Ndebele", "Ndonga", "Nepali", "Northern Sami", "Norwegian", "Norwegian Bokmål", "Norwegian Nynorsk", "Occitan", "Ojibwa", "Oriya", "Oromo", "Ossetian", "Other", "Pali", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Quechua", "Raeto-Romance", "Romanian", "Rundi", "Russian", "Samoan", "Sango", "Sanskrit", "Sardinian", "Serbian", "Serbo-Croatian", "Shona", "Sindhi", "Sinhalese", "Slavic", "Slovak", "Slovenian", "Somali", "Sotho", "Spanish", "Sundanese", "Swahili", "Swati", "Swedish", "Tagalog", "Tahitian", "Tajik", "Tatar", "Thai", "Tibetan", "Tigrinya", "Tonga", "Tsonga", "Tswana", "Turkish", "Turkmen", "Twi", "Uighur", "Ukrainian", "Urdu", "Uzbek", "Venda", "Vietnamese", "Volapük", "Walloon", "Welsh", "Wolof", "Xhosa", "Yi", "Yiddish", "Yoruba", "Zhuang", "Zulu"
@@ -33,8 +33,8 @@ const builder = new addonBuilder({
     name: 'Binged! OTT Releases Catalog',
     description: 'Provides the latest OTT movies and TV shows catalog available to stream on streaming platforms from Binged.com by Asaddon',
     catalogs: [
-        { id: 'binged-latest', type: 'movie', name: 'Binged - Latest', extra: [{ name: 'language', isRequired: false, options: supportedLanguages }] },
-        { id: 'binged-latest', type: 'series', name: 'Binged - Latest', extra: [{ name: 'language', isRequired: false, options: supportedLanguages }] }
+        { "type": "movie", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }]},
+        { "type": "series", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }]}
     ],
     resources: ['catalog'],
     types: ['movie', 'series'],
@@ -73,14 +73,20 @@ async function fetchBingedData(type) {
 }
 
 // Convert title to IMDb ID
-async function getImdbId(title) {
+async function getImdbId(title, year) {
     if (!title?.trim()) return null;
     try {
-        return await getImdbIdAsync({ name: title.replace(/\s?\(.*?\)$/, '').replace(/#/g, '').trim() }).catch(() => null);
-    } catch {
+        const cleanedTitle = title.replace(/\s?\(.*?\)$/, '').replace(/#/g, '').trim();
+        return await getImdbIdAsync({ name: cleanedTitle, year }).catch((err) => {
+            console.error(`Error Fetching IMDb ID For "${cleanedTitle}" (${year}):`, err.message);
+            return null;
+        });
+    } catch (err) {
+        console.error(`Unexpected Error Fetching IMDb ID For "${title}" (${year}):`, err.message);
         return null;
     }
 }
+
 
 // Fetch metadata from Cinemeta
 async function getMetadata(imdbId, type) {
@@ -107,18 +113,6 @@ function decodeTitle(title) {
     return he.decode(title);
 }
 
-// Helper function to format the release date
-function formatReleaseDate(releaseDate) {
-    if (!releaseDate) return null;
-
-    const date = new Date(releaseDate);
-    if (isNaN(date)) return null;  // If it's an invalid date
-
-    // Format the date to 'DD MMM YYYY' (e.g., '07 Feb 2025')
-    const options = { year: 'numeric', month: 'short', day: '2-digit' };
-    return date.toLocaleDateString('en-GB', options);
-}
-
 // Fetch and cache global data
 async function fetchAndCacheGlobalData(type) {
     const cacheKey = `global-${type}`;
@@ -126,8 +120,7 @@ async function fetchAndCacheGlobalData(type) {
 
     try {
         const rawData = await fetchBingedData(type);
-
-        const imdbPromises = rawData.map(item => getImdbId(item.title).catch(() => null));
+        const imdbPromises = rawData.map(item => getImdbId(item.title, item['release-year']).catch(() => null));
         const imdbResults = await Promise.allSettled(imdbPromises);
 
         const metadataPromises = imdbResults.map((result, index) =>
@@ -152,7 +145,7 @@ async function fetchAndCacheGlobalData(type) {
                     id, type, name: decodeTitle(item.title),
                     poster, posterShape: 'poster', background,
                     description: meta?.description || `${item.title} (${item['release-year']}) - ${item.genre}`,
-                    releaseInfo: formatReleaseDate(item['releaseInfo']) || item['streaming-date'],  // Format releaseInfo here
+                    releaseInfo: item['release-year'] || item['streaming-date'],  // Format releaseInfo here
                     genres: meta?.genres || item.genre.split(', '),
                     languages: item.languages ? item.languages.split(', ') : [],
                     cast: meta?.cast || [], director: meta?.director || [], writer: meta?.writer || [],
@@ -179,17 +172,16 @@ async function prefetchData() {
     console.log("Initial global data fetch completed.");
 }
 
-// Set an interval to refresh cache every 24 hours
 setInterval(() => {
     console.log("Refreshing global catalog data...");
     fetchAndCacheGlobalData("movie");
     fetchAndCacheGlobalData("series");
-}, 24 * 60 * 60 * 1000); // 24 hours in milliseconds
+}, 12 * 60 * 60 * 1000); // 12 hours in milliseconds
 
 // Define catalog handler
 builder.defineCatalogHandler(async (args) => {
     const type = args.type;
-    const selectedLanguage = args.extra?.language;
+    const selectedLanguage = args.extra?.genre;
     const globalCacheKey = `global-${type}`;
     const languageCacheKey = selectedLanguage ? `${type}-${selectedLanguage}` : globalCacheKey;
 
