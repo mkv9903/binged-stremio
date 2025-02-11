@@ -8,11 +8,10 @@ const he = require('he');
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-// Cache setup (TTL: 12 hours)
-const cache = new NodeCache({ stdTTL: 43200, checkperiod: 3600, useClones: false });
+const cache = new NodeCache({ stdTTL: 21600, checkperiod: 1800, useClones: false });
 
 const supportedLanguages = [
-    "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Abkhazian", "Afar", "Afrikaans", "Akan", "Albanian", "Amharic", "Arabic", "Aragonese", "Armenian", "Assamese", "Avaric", "Avestan", "Aymara", "Azerbaijani", "Bambara", "Bashkir", "Basque", "Belarusian", "Bengali", "Bhojpuri", "Bislama", "Bosnian", "Breton", "Bulgarian", "Burmese", "Cantonese", "Catalan", "Chamorro", "Chechen", "Chichewa", "Chuvash", "Cornish", "Corsican", "Cree", "Croatian", "Czech", "Danish", "Divehi", "Dutch", "Dzongkha", "English", "Esperanto", "Estonian", "Ewe", "Faroese", "Fijian", "Finnish", "French", "Frisian", "Fulah", "Gaelic", "Galician", "Ganda", "Georgian", "German", "Greek", "Guarani", "Gujarati", "Haitian", "Haryanvi", "Hausa", "Hebrew", "Herero", "Hiri Motu", "Hungarian", "Icelandic", "Ido", "Igbo", "Indonesian", "Interlingua", "Interlingue", "Inuktitut", "Inupiaq", "Irish", "Italian", "Japanese", "Javanese", "Kalaallisut", "Kanuri", "Kashmiri", "Kazakh", "Khmer", "Kikuyu", "Kinyarwanda", "Kirghiz", "Komi", "Kongo", "Korean", "Kuanyama", "Kurdish", "Lao", "Latin", "Latvian", "Letzeburgesch", "Limburgish", "Lingala", "Lithuanian", "Luba-Katanga", "Macedonian", "Malagasy", "Malay", "Maltese", "Mandarin", "Manipuri", "Manx", "Maori", "Marathi", "Marshall", "Moldavian", "Mongolian", "Nauru", "Navajo", "Ndebele", "Ndonga", "Nepali", "Northern Sami", "Norwegian", "Norwegian Bokmål", "Norwegian Nynorsk", "Occitan", "Ojibwa", "Oriya", "Oromo", "Ossetian", "Other", "Pali", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Quechua", "Raeto-Romance", "Romanian", "Rundi", "Russian", "Samoan", "Sango", "Sanskrit", "Sardinian", "Serbian", "Serbo-Croatian", "Shona", "Sindhi", "Sinhalese", "Slavic", "Slovak", "Slovenian", "Somali", "Sotho", "Spanish", "Sundanese", "Swahili", "Swati", "Swedish", "Tagalog", "Tahitian", "Tajik", "Tatar", "Thai", "Tibetan", "Tigrinya", "Tonga", "Tsonga", "Tswana", "Turkish", "Turkmen", "Twi", "Uighur", "Ukrainian", "Urdu", "Uzbek", "Venda", "Vietnamese", "Volapük", "Walloon", "Welsh", "Wolof", "Xhosa", "Yi", "Yiddish", "Yoruba", "Zhuang", "Zulu"
+    "Hindi", "English", "Telugu", "Tamil", "Malayalam", "Kannada", "Abkhazian", "Afar", "Afrikaans", "Akan", "Albanian", "Amharic", "Arabic", "Aragonese", "Armenian", "Assamese", "Avaric", "Avestan", "Aymara", "Azerbaijani", "Bambara", "Bashkir", "Basque", "Belarusian", "Bengali", "Bhojpuri", "Bislama", "Bosnian", "Breton", "Bulgarian", "Burmese", "Cantonese", "Catalan", "Chamorro", "Chechen", "Chichewa", "Chuvash", "Cornish", "Corsican", "Cree", "Croatian", "Czech", "Danish", "Divehi", "Dutch", "Dzongkha", "Esperanto", "Estonian", "Ewe", "Faroese", "Fijian", "Finnish", "French", "Frisian", "Fulah", "Gaelic", "Galician", "Ganda", "Georgian", "German", "Greek", "Guarani", "Gujarati", "Haitian", "Haryanvi", "Hausa", "Hebrew", "Herero", "Hiri Motu", "Hungarian", "Icelandic", "Ido", "Igbo", "Indonesian", "Interlingua", "Interlingue", "Inuktitut", "Inupiaq", "Irish", "Italian", "Japanese", "Javanese", "Kalaallisut", "Kanuri", "Kashmiri", "Kazakh", "Khmer", "Kikuyu", "Kinyarwanda", "Kirghiz", "Komi", "Kongo", "Korean", "Kuanyama", "Kurdish", "Lao", "Latin", "Latvian", "Letzeburgesch", "Limburgish", "Lingala", "Lithuanian", "Luba-Katanga", "Macedonian", "Malagasy", "Malay", "Maltese", "Mandarin", "Manipuri", "Manx", "Maori", "Marathi", "Marshall", "Moldavian", "Mongolian", "Nauru", "Navajo", "Ndebele", "Ndonga", "Nepali", "Northern Sami", "Norwegian", "Norwegian Bokmål", "Norwegian Nynorsk", "Occitan", "Ojibwa", "Oriya", "Oromo", "Ossetian", "Other", "Pali", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Quechua", "Raeto-Romance", "Romanian", "Rundi", "Russian", "Samoan", "Sango", "Sanskrit", "Sardinian", "Serbian", "Serbo-Croatian", "Shona", "Sindhi", "Sinhalese", "Slavic", "Slovak", "Slovenian", "Somali", "Sotho", "Spanish", "Sundanese", "Swahili", "Swati", "Swedish", "Tagalog", "Tahitian", "Tajik", "Tatar", "Thai", "Tibetan", "Tigrinya", "Tonga", "Tsonga", "Tswana", "Turkish", "Turkmen", "Twi", "Uighur", "Ukrainian", "Urdu", "Uzbek", "Venda", "Vietnamese", "Volapük", "Walloon", "Welsh", "Wolof", "Xhosa", "Yi", "Yiddish", "Yoruba", "Zhuang", "Zulu"
 ];
 // Render Refresh Start
 const renderUrl = 'https://binged-stremio.onrender.com';
@@ -29,9 +28,21 @@ setInterval(() => {
 
 const builder = new addonBuilder({
     id: 'com.binged.latest',
-    version: '1.0.0',
+    version: '2.0.0',
     name: 'Binged! OTT Releases Catalog',
     description: 'Provides the latest OTT movies and TV shows catalog available to stream on streaming platforms from Binged.com by Asaddon',
+    "behaviorHints": {
+        "configurable": true,
+        "configurationRequired": false
+      },
+      config: [
+        {
+            key: 'rpdbApiKey',
+            title: 'RPDB API Key',
+            type: 'text',
+            required: false
+        }
+    ],
     catalogs: [
         { "type": "movie", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }]},
         { "type": "series", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }]}
@@ -41,11 +52,47 @@ const builder = new addonBuilder({
     idPrefixes: ['binged']
 });
 
+async function prefetchData() {
+    console.log("Starting initial global data fetch...");
+    try {
+        await Promise.all([
+            fetchAndCacheGlobalData("movie"),
+            fetchAndCacheGlobalData("series")
+        ]);
+        console.log("Initial global data fetch completed.");
+    } catch (error) {
+        console.error("Error during initial global data fetch:", error.message);
+    }
+}
+
+// Function to refresh data with error handling and non-overlapping execution
+async function refreshCatalogData() {
+    console.log("Refreshing global catalog data...");
+    try {
+        await Promise.all([
+            fetchAndCacheGlobalData("movie"),
+            fetchAndCacheGlobalData("series")
+        ]);
+        console.log("Global catalog data refreshed.");
+    } catch (error) {
+        console.error("Error refreshing global catalog data:", error.message);
+    }
+
+    // Schedule the next refresh after 6 hours
+    setTimeout(refreshCatalogData, 6 * 60 * 60 * 1000); // 6 hours
+}
+
+// Initial fetch
+prefetchData().then(() => {
+    // Start the refresh loop after the first fetch completes
+    setTimeout(refreshCatalogData, 6 * 60 * 60 * 1000);
+});
+
 // Fetch data from Binged
 async function fetchBingedData(type) {
     const url = 'https://www.binged.com/wp-admin/admin-ajax.php';
     const body = new URLSearchParams({
-        'filters[category][]': type === 'movie' ? 'Film' : 'Tv show',
+        'filters[category][]': type === 'movie' ? 'Film' : type === 'series' ? 'TV show' : [],
         'filters[mode]': 'streaming-now',
         'filters[page]': 0,
         action: 'mi_events_load_data',
@@ -116,6 +163,9 @@ function decodeTitle(title) {
 // Fetch and cache global data
 async function fetchAndCacheGlobalData(type) {
     const cacheKey = `global-${type}`;
+    // Flush old cache before fetching fresh data
+    cache.del(cacheKey);
+    console.log(`Flushed cache for ${cacheKey}, fetching fresh data...`);
     console.log(`Fetching fresh global data for: ${type}`);
 
     try {
@@ -137,15 +187,14 @@ async function fetchAndCacheGlobalData(type) {
                 let poster = imdbId ? `https://live.metahub.space/poster/small/${imdbId}/img` : item['big-image'];
                 let background = imdbId ? `https://live.metahub.space/background/medium/${imdbId}/img` : item['big-image'];
 
-                const [posterAvailable, backgroundAvailable] = await Promise.all([isUrlAvailable(poster), isUrlAvailable(background)]);
+                const [posterAvailable] = await Promise.all([isUrlAvailable(poster)]);
                 if (!posterAvailable) poster = item['big-image'];
-                if (!backgroundAvailable) background = item['big-image'];
 
                 return {
                     id, type, name: decodeTitle(item.title),
                     poster, posterShape: 'poster', background,
                     description: meta?.description || `${item.title} (${item['release-year']}) - ${item.genre}`,
-                    releaseInfo: item['release-year'] || item['streaming-date'],  // Format releaseInfo here
+                    releaseInfo: item['release-year'] ? `${item['release-year']}` : (item['streaming-date'] || "Unknown"),
                     genres: meta?.genres || item.genre.split(', '),
                     languages: item.languages ? item.languages.split(', ') : [],
                     cast: meta?.cast || [], director: meta?.director || [], writer: meta?.writer || [],
@@ -164,46 +213,79 @@ async function fetchAndCacheGlobalData(type) {
     }
 }
 
-// Function to prefetch data at startup
-async function prefetchData() {
-    console.log("Starting initial global data fetch...");
-    await fetchAndCacheGlobalData("movie");
-    await fetchAndCacheGlobalData("series");
-    console.log("Initial global data fetch completed.");
-}
 
-setInterval(() => {
-    console.log("Refreshing global catalog data...");
-    fetchAndCacheGlobalData("movie");
-    fetchAndCacheGlobalData("series");
-}, 12 * 60 * 60 * 1000); // 12 hours in milliseconds
+// Function to check if RPDB key is valid
+async function validateRPDBKey(rpdbKey) {
+    try {
+        const response = await fetch(`https://api.ratingposterdb.com/${rpdbKey}/isValid`);
+        const data = await response.json();
+        return data?.valid === true; // Return true if the key is valid
+    } catch (e) {
+        // Handle error (e.g., network issue, invalid key, etc.)
+        return false; // Return false if validation fails
+    }
+}
 
 // Define catalog handler
 builder.defineCatalogHandler(async (args) => {
     const type = args.type;
+
+    if (type !== 'movie' && type !== 'series') {
+        console.log(`Skipping invalid type: ${type}`);
+        return { metas: [] };
+    }
+
+    const config = args.config || {}; 
     const selectedLanguage = args.extra?.genre;
     const globalCacheKey = `global-${type}`;
-    const languageCacheKey = selectedLanguage ? `${type}-${selectedLanguage}` : globalCacheKey;
+    //console.log(`Using cache key: ${globalCacheKey}`);
 
-    if (cache.has(languageCacheKey)) {
-        console.log(`Serving cached data for: ${languageCacheKey}`);
-        return { metas: cache.get(languageCacheKey) };
+    // Step 1: Fetch raw global data (cached)
+    let globalData = cache.get(globalCacheKey);
+    if (!globalData) {
+        try {
+            globalData = await fetchAndCacheGlobalData(type);
+            cache.set(globalCacheKey, globalData);
+            console.log(`Cached raw global data for: ${globalCacheKey}`);
+        } catch (error) {
+            console.error(`Failed to fetch global data: ${error.message}`);
+            return { metas: [] };
+        }
     }
 
-    const globalData = cache.get(globalCacheKey) || [];
-
-    if (!selectedLanguage) {
-        return { metas: globalData };
+    // Step 2: Validate RPDB API key (cached)
+    let isRPDBKeyValid = false;
+    const rpdbCacheKey = `rpdb-valid-${config.rpdbApiKey}`;
+    if (config?.rpdbApiKey) {
+        isRPDBKeyValid = cache.get(rpdbCacheKey) ?? await validateRPDBKey(config.rpdbApiKey).catch(err => {
+            console.error(`Failed to validate RPDB key: ${err.message}`);
+            return false;
+        });
+        cache.set(rpdbCacheKey, isRPDBKeyValid);
+        !isRPDBKeyValid && console.log('RPDB API key is invalid');
     }
 
-    const filteredData = globalData.filter(item => item.languages.includes(selectedLanguage));
-    cache.set(languageCacheKey, filteredData);
-    console.log(`Cached filtered data for: ${languageCacheKey}`);
+    // Step 3: Apply RPDB poster updates (if API key is valid)
+    let metasToReturn = globalData.map(meta => {
+        if (isRPDBKeyValid && meta.id && /^tt\d+$/.test(meta.id)) {
+            return { 
+                ...meta, 
+                poster: `https://api.ratingposterdb.com/${config.rpdbApiKey}/imdb/poster-default/${meta.id}.jpg?fallback=true`
+            };
+        }
+        return meta;
+    });
 
-    return { metas: filteredData };
+    // Step 4: Filter by language (if selected)
+    if (selectedLanguage) {
+        console.log(`Filtering data for language: ${selectedLanguage}`);
+        metasToReturn = metasToReturn.filter(item =>
+            Array.isArray(item.languages) && item.languages.includes(selectedLanguage)
+        );
+    }
+
+    return { metas: metasToReturn };
 });
 
-// Start prefetching immediately on startup
-prefetchData();
 
 serveHTTP(builder.getInterface(), { port: 7000 });
