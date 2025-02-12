@@ -98,7 +98,7 @@ async function fetchBingedData(type) {
         action: 'mi_events_load_data',
         mode: 'streaming-now',
         start: 0,
-        length: 500,
+        length: 5,
         customcatalog: 0
     });
 
@@ -160,16 +160,47 @@ function decodeTitle(title) {
     return he.decode(title);
 }
 
+
+// Helper function to log cache state (number of items only)
+function logCacheState(cache, message) {
+    console.log(message);
+    const keys = cache.keys();
+    if (keys.length === 0) {
+        console.log("Cache is empty.");
+    } else {
+        console.log(`Number of keys in cache: ${keys.length}`);
+        keys.forEach(key => {
+            const value = cache.get(key);
+            if (Array.isArray(value)) {
+                console.log(`Key: ${key}, Number of items: ${value.length}`);
+            } else if (typeof value === 'object' && value !== null) {
+                console.log(`Key: ${key}, Number of items: ${Object.keys(value).length}`);
+            } else {
+                console.log(`Key: ${key}, Number of items: 1`);
+            }
+        });
+    }
+}
+
 // Fetch and cache global data
 async function fetchAndCacheGlobalData(type) {
     const cacheKey = `global-${type}`;
-    // Flush old cache before fetching fresh data
-    cache.del(cacheKey);
-    console.log(`Flushed cache for ${cacheKey}, fetching fresh data...`);
-    console.log(`Fetching fresh global data for: ${type}`);
 
+    // Log cache state before clearing
+    logCacheState(cache, `Cache state before clearing for ${cacheKey}:`);
+
+    // Clear the cache
+    cache.flushAll()
+    console.log(`Cache cleared for ${cacheKey}.`);
+
+    // Log cache state after clearing
+    logCacheState(cache, `Cache state after clearing for ${cacheKey}:`);
+
+    console.log(`Fetching fresh data for ${cacheKey}...`);
     try {
         const rawData = await fetchBingedData(type);
+        console.log(`Fetched ${rawData.length} items for ${cacheKey}`);
+
         const imdbPromises = rawData.map(item => getImdbId(item.title, item['release-year']).catch(() => null));
         const imdbResults = await Promise.allSettled(imdbPromises);
 
@@ -204,8 +235,13 @@ async function fetchAndCacheGlobalData(type) {
             })
         );
 
+        // Cache the new data
         cache.set(cacheKey, metas);
-        console.log(`Cached global data for: ${type}`);
+        console.log(`Cached ${metas.length} items for ${cacheKey}`);
+
+        // Log cache state after setting new data
+        logCacheState(cache, `Cache state after setting new data for ${cacheKey}:`);
+
         return metas;
     } catch (error) {
         console.error(`Error fetching data for ${type}:`, error);
