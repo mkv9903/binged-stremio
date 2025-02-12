@@ -98,7 +98,7 @@ async function fetchBingedData(type) {
         action: 'mi_events_load_data',
         mode: 'streaming-now',
         start: 0,
-        length: 5,
+        length: 500,
         customcatalog: 0
     });
 
