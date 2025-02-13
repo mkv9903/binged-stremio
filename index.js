@@ -8,7 +8,7 @@ const he = require('he');
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-const cache = new NodeCache({ stdTTL: 21600, checkperiod: 1800, useClones: false });
+const cache = new NodeCache({ stdTTL: 604800, checkperiod: 1800, useClones: false });
 const filters = [ "Must Watch", "Good", "Satisfactory", "Passable", "Poor", "Skip" ];
 const recommendationMapping = { "A": "Must Watch", "B": "Good", "H": "Satisfactory", "C": "Passable", "D": "Poor", "F": "Skip" };
 const supportedLanguages = [
@@ -53,12 +53,13 @@ const builder = new addonBuilder({
     idPrefixes: ['binged']
 });
 
+// Initial fetch function
 async function prefetchData() {
     console.log("Starting initial global data fetch...");
     try {
         await Promise.all([
-            fetchAndCacheGlobalData("movie"),
-            fetchAndCacheGlobalData("series")
+            fetchAndCacheGlobalData("movie", true), // Fetch all 500 items for movies
+            fetchAndCacheGlobalData("series", true) // Fetch all 500 items for series
         ]);
         console.log("Initial global data fetch completed.");
     } catch (error) {
@@ -66,31 +67,30 @@ async function prefetchData() {
     }
 }
 
-// Function to refresh data with error handling and non-overlapping execution
+// Function to refresh data (fetch only the latest 50 items)
 async function refreshCatalogData() {
     console.log("Refreshing global catalog data...");
     try {
         await Promise.all([
-            fetchAndCacheGlobalData("movie"),
-            fetchAndCacheGlobalData("series")
+            fetchAndCacheGlobalData("movie"), // Fetch latest 50 items for movies
+            fetchAndCacheGlobalData("series") // Fetch latest 50 items for series
         ]);
         console.log("Global catalog data refreshed.");
     } catch (error) {
         console.error("Error refreshing global catalog data:", error.message);
+    } finally {
+        // Schedule the next refresh after 1 hour
+        setTimeout(refreshCatalogData, 60 * 60 * 1000); // 1 hour = 60 minutes * 60 seconds * 1000 milliseconds
     }
-
-    // Schedule the next refresh after 6 hours
-    setTimeout(refreshCatalogData, 6 * 60 * 60 * 1000); // 6 hours
 }
 
-// Initial fetch
+// Initial fetch (fetch all 500 items)
 prefetchData().then(() => {
     // Start the refresh loop after the first fetch completes
-    setTimeout(refreshCatalogData, 6 * 60 * 60 * 1000);
+    setTimeout(refreshCatalogData, 60 * 60 * 1000); // First refresh after 1 hour
 });
-
-// Fetch data from Binged
-async function fetchBingedData(type) {
+// Function to fetch data with pagination support
+async function fetchBingedData(type, start = 0, length = 50) {
     const url = 'https://www.binged.com/wp-admin/admin-ajax.php';
     const body = new URLSearchParams({
         'filters[category][]': type === 'movie' ? 'Film' : type === 'series' ? 'TV show' : [],
@@ -98,8 +98,8 @@ async function fetchBingedData(type) {
         'filters[page]': 0,
         action: 'mi_events_load_data',
         mode: 'streaming-now',
-        start: 0,
-        length: 50,
+        start: start,
+        length: length,
         customcatalog: 0
     });
 
@@ -115,9 +115,7 @@ async function fetchBingedData(type) {
     });
 
     if (!response.ok) throw new Error(`Failed to fetch data: ${response.statusText}`);
-
-    const data = await response.json();
-    return data.data;
+    return response.json();
 }
 
 // Convert title to IMDb ID
@@ -183,72 +181,81 @@ function logCacheState(cache, message) {
     }
 }
 
-// Fetch and cache global data
-async function fetchAndCacheGlobalData(type) {
+// Function to fetch and cache global data
+async function fetchAndCacheGlobalData(type, isInitialFetch = false) {
     const cacheKey = `global-${type}`;
 
-    // Log cache state before clearing
-    logCacheState(cache, `Cache state before clearing for ${cacheKey}:`);
-
-    // Clear the cache
-    cache.flushAll()
-    console.log(`Cache cleared for ${cacheKey}.`);
-
-    // Log cache state after clearing
-    logCacheState(cache, `Cache state after clearing for ${cacheKey}:`);
-
-    console.log(`Fetching fresh data for ${cacheKey}...`);
-    try {
-        const rawData = await fetchBingedData(type);
-        console.log(`Fetched ${rawData.length} items for ${cacheKey}`);
-
-        const imdbPromises = rawData.map(item => getImdbId(item.title, item['release-year']).catch(() => null));
-        const imdbResults = await Promise.allSettled(imdbPromises);
-
-        const metadataPromises = imdbResults.map((result, index) =>
-            result.status === 'fulfilled' && result.value ? getMetadata(result.value, type).catch(() => null) : null
-        );
-        const metadataResults = await Promise.allSettled(metadataPromises);
-
-        const metas = await Promise.all(
-            rawData.map(async (item, index) => {
-                const imdbId = imdbResults[index]?.status === 'fulfilled' ? imdbResults[index].value : null;
-                const meta = metadataResults[index]?.status === 'fulfilled' ? metadataResults[index].value : null;
-                const id = imdbId || `binged:${item.id}`;
-
-                let poster = imdbId ? `https://live.metahub.space/poster/small/${imdbId}/img` : item['big-image'];
-                let background = imdbId ? `https://live.metahub.space/background/medium/${imdbId}/img` : item['big-image'];
-
-                const [posterAvailable] = await Promise.all([isUrlAvailable(poster)]);
-                if (!posterAvailable) poster = item['big-image'];
-
-                return {
-                    id, type, name: decodeTitle(item.title),
-                    poster, posterShape: 'poster', background,
-                    description: meta?.description || `${decodeTitle(item.title)} (${item['release-year']}) - ${item.genre}`,
-                    recommendation: item.recommendation || "",
-                    releaseInfo: item['release-year'] ? `${item['release-year']}` : (item['streaming-date'] || "Unknown"),
-                    genres: meta?.genres || item.genre.split(', '),
-                    languages: item.languages ? item.languages.split(', ') : [],
-                    cast: meta?.cast || [], director: meta?.director || [], writer: meta?.writer || [],
-                    imdbRating: meta?.imdbRating || null, runtime: meta?.runtime || null,
-                    trailers: meta?.trailers || [], links: meta?.links || []
-                };
-            })
-        );
-
-        // Cache the new data
-        cache.set(cacheKey, metas);
-        console.log(`Cached ${metas.length} items for ${cacheKey}`);
-
-        // Log cache state after setting new data
-        logCacheState(cache, `Cache state after setting new data for ${cacheKey}:`);
-
+    // Fetch all 500 items on the first run
+    if (isInitialFetch) {
+        console.log(`Fetching all data for ${cacheKey}...`);
+        const rawData = await fetchBingedData(type, 0, 500);
+        const metas = await processRawData(rawData.data, type);
+        cache.set(cacheKey, metas, 604800); // 7 days = 604,800 seconds
+        console.log(`Cached ${metas.length} items for ${cacheKey} with a TTL of 7 days.`);
         return metas;
-    } catch (error) {
-        console.error(`Error fetching data for ${type}:`, error);
-        return [];
     }
+
+    // On subsequent refreshes, fetch only the latest 50 items
+    console.log(`Fetching latest data for ${cacheKey}...`);
+    const latestRawData = await fetchBingedData(type, 0, 50);
+    const latestMetas = await processRawData(latestRawData.data, type);
+
+    // Get existing data from cache
+    const existingData = cache.get(cacheKey) || [];
+
+    // Filter out duplicates by comparing IDs
+    const newMetas = latestMetas.filter(newItem => 
+        !existingData.some(existingItem => existingItem.id === newItem.id)
+    );
+
+    // If there are new items, append them to the existing data
+    if (newMetas.length > 0) {
+        console.log(`Adding ${newMetas.length} new items to ${cacheKey}`);
+        const updatedData = [...newMetas, ...existingData];
+        cache.set(cacheKey, updatedData, 604800); // 7 days = 604,800 seconds
+        return updatedData;
+    }
+
+    console.log(`No new items found for ${cacheKey}`);
+    return existingData;
+}
+
+// Helper function to process raw data into metas
+async function processRawData(rawData, type) {
+    const imdbPromises = rawData.map(item => getImdbId(item.title, item['release-year']).catch(() => null));
+    const imdbResults = await Promise.allSettled(imdbPromises);
+
+    const metadataPromises = imdbResults.map((result, index) =>
+        result.status === 'fulfilled' && result.value ? getMetadata(result.value, type).catch(() => null) : null
+    );
+    const metadataResults = await Promise.allSettled(metadataPromises);
+
+    return Promise.all(
+        rawData.map(async (item, index) => {
+            const imdbId = imdbResults[index]?.status === 'fulfilled' ? imdbResults[index].value : null;
+            const meta = metadataResults[index]?.status === 'fulfilled' ? metadataResults[index].value : null;
+            const id = imdbId || `binged:${item.id}`;
+
+            let poster = imdbId ? `https://live.metahub.space/poster/small/${imdbId}/img` : item['big-image'];
+            let background = imdbId ? `https://live.metahub.space/background/medium/${imdbId}/img` : item['big-image'];
+
+            const [posterAvailable] = await Promise.all([isUrlAvailable(poster)]);
+            if (!posterAvailable) poster = item['big-image'];
+
+            return {
+                id, type, name: decodeTitle(item.title),
+                poster, posterShape: 'poster', background,
+                description: meta?.description || `${decodeTitle(item.title)} (${item['release-year']}) - ${item.genre}`,
+                recommendation: item.recommendation || "",
+                releaseInfo: item['release-year'] ? `${item['release-year']}` : (item['streaming-date'] || "Unknown"),
+                genres: meta?.genres || item.genre.split(', '),
+                languages: item.languages ? item.languages.split(', ') : [],
+                cast: meta?.cast || [], director: meta?.director || [], writer: meta?.writer || [],
+                imdbRating: meta?.imdbRating || null, runtime: meta?.runtime || null,
+                trailers: meta?.trailers || [], links: meta?.links || []
+            };
+        })
+    );
 }
 
 
