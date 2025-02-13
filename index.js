@@ -9,7 +9,8 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 const cache = new NodeCache({ stdTTL: 21600, checkperiod: 1800, useClones: false });
-
+const filters = [ "Must Watch", "Good", "Satisfactory", "Passable", "Poor", "Skip" ];
+const recommendationMapping = { "A": "Must Watch", "B": "Good", "H": "Satisfactory", "C": "Passable", "D": "Poor", "F": "Skip" };
 const supportedLanguages = [
     "Hindi", "English", "Telugu", "Tamil", "Malayalam", "Kannada", "Abkhazian", "Afar", "Afrikaans", "Akan", "Albanian", "Amharic", "Arabic", "Aragonese", "Armenian", "Assamese", "Avaric", "Avestan", "Aymara", "Azerbaijani", "Bambara", "Bashkir", "Basque", "Belarusian", "Bengali", "Bhojpuri", "Bislama", "Bosnian", "Breton", "Bulgarian", "Burmese", "Cantonese", "Catalan", "Chamorro", "Chechen", "Chichewa", "Chuvash", "Cornish", "Corsican", "Cree", "Croatian", "Czech", "Danish", "Divehi", "Dutch", "Dzongkha", "Esperanto", "Estonian", "Ewe", "Faroese", "Fijian", "Finnish", "French", "Frisian", "Fulah", "Gaelic", "Galician", "Ganda", "Georgian", "German", "Greek", "Guarani", "Gujarati", "Haitian", "Haryanvi", "Hausa", "Hebrew", "Herero", "Hiri Motu", "Hungarian", "Icelandic", "Ido", "Igbo", "Indonesian", "Interlingua", "Interlingue", "Inuktitut", "Inupiaq", "Irish", "Italian", "Japanese", "Javanese", "Kalaallisut", "Kanuri", "Kashmiri", "Kazakh", "Khmer", "Kikuyu", "Kinyarwanda", "Kirghiz", "Komi", "Kongo", "Korean", "Kuanyama", "Kurdish", "Lao", "Latin", "Latvian", "Letzeburgesch", "Limburgish", "Lingala", "Lithuanian", "Luba-Katanga", "Macedonian", "Malagasy", "Malay", "Maltese", "Mandarin", "Manipuri", "Manx", "Maori", "Marathi", "Marshall", "Moldavian", "Mongolian", "Nauru", "Navajo", "Ndebele", "Ndonga", "Nepali", "Northern Sami", "Norwegian", "Norwegian Bokmål", "Norwegian Nynorsk", "Occitan", "Ojibwa", "Oriya", "Oromo", "Ossetian", "Other", "Pali", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Quechua", "Raeto-Romance", "Romanian", "Rundi", "Russian", "Samoan", "Sango", "Sanskrit", "Sardinian", "Serbian", "Serbo-Croatian", "Shona", "Sindhi", "Sinhalese", "Slavic", "Slovak", "Slovenian", "Somali", "Sotho", "Spanish", "Sundanese", "Swahili", "Swati", "Swedish", "Tagalog", "Tahitian", "Tajik", "Tatar", "Thai", "Tibetan", "Tigrinya", "Tonga", "Tsonga", "Tswana", "Turkish", "Turkmen", "Twi", "Uighur", "Ukrainian", "Urdu", "Uzbek", "Venda", "Vietnamese", "Volapük", "Walloon", "Welsh", "Wolof", "Xhosa", "Yi", "Yiddish", "Yoruba", "Zhuang", "Zulu"
 ];
@@ -44,8 +45,8 @@ const builder = new addonBuilder({
         }
     ],
     catalogs: [
-        { "type": "movie", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }]},
-        { "type": "series", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }]}
+        { "type": "movie", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }]},
+        { "type": "series", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }]}
     ],
     resources: ['catalog'],
     types: ['movie', 'series'],
@@ -98,7 +99,7 @@ async function fetchBingedData(type) {
         action: 'mi_events_load_data',
         mode: 'streaming-now',
         start: 0,
-        length: 500,
+        length: 50,
         customcatalog: 0
     });
 
@@ -224,7 +225,8 @@ async function fetchAndCacheGlobalData(type) {
                 return {
                     id, type, name: decodeTitle(item.title),
                     poster, posterShape: 'poster', background,
-                    description: meta?.description || `${item.title} (${item['release-year']}) - ${item.genre}`,
+                    description: meta?.description || `${decodeTitle(item.title)} (${item['release-year']}) - ${item.genre}`,
+                    recommendation: item.recommendation || "",
                     releaseInfo: item['release-year'] ? `${item['release-year']}` : (item['streaming-date'] || "Unknown"),
                     genres: meta?.genres || item.genre.split(', '),
                     languages: item.languages ? item.languages.split(', ') : [],
@@ -274,7 +276,7 @@ builder.defineCatalogHandler(async (args) => {
     const config = args.config || {}; 
     const selectedLanguage = args.extra?.genre;
     const globalCacheKey = `global-${type}`;
-    //console.log(`Using cache key: ${globalCacheKey}`);
+    const selectedRecommendation = args.extra?.recommendation;
 
     // Step 1: Fetch raw global data (cached)
     let globalData = cache.get(globalCacheKey);
@@ -314,11 +316,21 @@ builder.defineCatalogHandler(async (args) => {
 
     // Step 4: Filter by language (if selected)
     if (selectedLanguage) {
-        console.log(`Filtering data for language: ${selectedLanguage}`);
+        console.log(`Filtering data for Language: ${selectedLanguage}`);
         metasToReturn = metasToReturn.filter(item =>
             Array.isArray(item.languages) && item.languages.includes(selectedLanguage)
         );
     }
+    // Step 5: Filter by recommendation (if selected)
+    if (selectedRecommendation && filters.includes(selectedRecommendation)) {
+        console.log(`Filtering data for Recommendation: ${selectedRecommendation}`);
+        metasToReturn = metasToReturn.filter(item => {
+            // Map the alphabetic recommendation to its human-readable equivalent
+            const mappedRecommendation = recommendationMapping[item.recommendation];
+            return mappedRecommendation === selectedRecommendation;
+        });
+    }
+
 
     return { metas: metasToReturn };
 });
