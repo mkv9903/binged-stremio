@@ -115,6 +115,9 @@ async function fetchBingedData(type, start = 0, length = 50) {
     });
 
     if (!response.ok) throw new Error(`Failed to fetch data: ${response.statusText}`);
+    const date = new Date();
+    const dateInKarachi = date.toLocaleString('en-US', options);
+    console.log("API response date (Asia/Karachi):", dateInKarachi);
     return response.json();
 }
 
@@ -159,28 +162,6 @@ function decodeTitle(title) {
     return he.decode(title);
 }
 
-
-// Helper function to log cache state (number of items only)
-function logCacheState(cache, message) {
-    console.log(message);
-    const keys = cache.keys();
-    if (keys.length === 0) {
-        console.log("Cache is empty.");
-    } else {
-        console.log(`Number of keys in cache: ${keys.length}`);
-        keys.forEach(key => {
-            const value = cache.get(key);
-            if (Array.isArray(value)) {
-                console.log(`Key: ${key}, Number of items: ${value.length}`);
-            } else if (typeof value === 'object' && value !== null) {
-                console.log(`Key: ${key}, Number of items: ${Object.keys(value).length}`);
-            } else {
-                console.log(`Key: ${key}, Number of items: 1`);
-            }
-        });
-    }
-}
-
 // Function to fetch and cache global data
 async function fetchAndCacheGlobalData(type, isInitialFetch = false) {
     const cacheKey = `global-${type}`;
@@ -211,6 +192,7 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false) {
     // If there are new items, append them to the existing data
     if (newMetas.length > 0) {
         console.log(`Adding ${newMetas.length} new items to ${cacheKey}`);
+        console.log("New items to add:", newMetas);
         const updatedData = [...newMetas, ...existingData];
         cache.set(cacheKey, updatedData, 604800); // 7 days = 604,800 seconds
         return updatedData;
@@ -343,4 +325,4 @@ builder.defineCatalogHandler(async (args) => {
 });
 
 
-serveHTTP(builder.getInterface(), { port: 7000 });
+serveHTTP(builder.getInterface(), { port: 7000, cacheMaxAge: 3600, staleRevalidate:3600, staleError:3600 });
