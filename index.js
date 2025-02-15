@@ -55,29 +55,29 @@ const builder = new addonBuilder({
 
 // Initial fetch function
 async function prefetchData() {
-    console.log("Starting initial global data fetch...");
+    console.log("Starting Initial Global Data Fetch...");
     try {
         await Promise.all([
             fetchAndCacheGlobalData("movie", true), // Fetch all 500 items for movies
             fetchAndCacheGlobalData("series", true) // Fetch all 500 items for series
         ]);
-        console.log("Initial global data fetch completed.");
+        console.log("Initial Global Data Fetch Completed.");
     } catch (error) {
-        console.error("Error during initial global data fetch:", error.message);
+        console.error("Error During Initial Global Data Fetch:", error.message);
     }
 }
 
 // Function to refresh data (fetch only the latest 50 items)
 async function refreshCatalogData() {
-    console.log("Refreshing global catalog data...");
+    console.log("Refreshing Global Catalog Data...");
     try {
         await Promise.all([
             fetchAndCacheGlobalData("movie"), // Fetch latest 50 items for movies
             fetchAndCacheGlobalData("series") // Fetch latest 50 items for series
         ]);
-        console.log("Global catalog data refreshed.");
+        console.log("Global Catalog Data Refreshed.");
     } catch (error) {
-        console.error("Error refreshing global catalog data:", error.message);
+        console.error("Error Refreshing Global Catalog Data:", error.message);
     } finally {
         // Schedule the next refresh after 1 hour
         setTimeout(refreshCatalogData, 60 * 60 * 1000); // 1 hour = 60 minutes * 60 seconds * 1000 milliseconds
@@ -115,9 +115,9 @@ async function fetchBingedData(type, start = 0, length = 50) {
     });
 
     if (!response.ok) throw new Error(`Failed to fetch data: ${response.statusText}`);
-    const date = new Date();
-    const dateInKarachi = date.toLocaleString('en-US', options);
-    console.log("API response date (Asia/Karachi):", dateInKarachi);
+    //const date = new Date();
+    //const dateInKarachi = date.toLocaleString('en-US', options);
+    //console.log("API response date (Asia/Karachi):", dateInKarachi);
     return response.json();
 }
 
@@ -135,7 +135,6 @@ async function getImdbId(title, year) {
         return null;
     }
 }
-
 
 // Fetch metadata from Cinemeta
 async function getMetadata(imdbId, type) {
@@ -168,16 +167,16 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false) {
 
     // Fetch all 500 items on the first run
     if (isInitialFetch) {
-        console.log(`Fetching all data for ${cacheKey}...`);
+        console.log(`Fetching All Data For ${cacheKey}...`);
         const rawData = await fetchBingedData(type, 0, 500);
         const metas = await processRawData(rawData.data, type);
         cache.set(cacheKey, metas, 604800); // 7 days = 604,800 seconds
-        console.log(`Cached ${metas.length} items for ${cacheKey} with a TTL of 7 days.`);
+        console.log(`Cached ${metas.length} Items For ${cacheKey} With A TTL of 7 Days.`);
         return metas;
     }
 
     // On subsequent refreshes, fetch only the latest 50 items
-    console.log(`Fetching latest data for ${cacheKey}...`);
+    console.log(`Fetching Latest Data For ${cacheKey}...`);
     const latestRawData = await fetchBingedData(type, 0, 50);
     const latestMetas = await processRawData(latestRawData.data, type);
 
@@ -191,14 +190,14 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false) {
 
     // If there are new items, append them to the existing data
     if (newMetas.length > 0) {
-        console.log(`Adding ${newMetas.length} new items to ${cacheKey}`);
-        console.log("New items to add:", newMetas);
+        console.log(`Adding ${newMetas.length} New Items To ${cacheKey}`);
+        //console.log("New items to add:", newMetas);
         const updatedData = [...newMetas, ...existingData];
         cache.set(cacheKey, updatedData, 604800); // 7 days = 604,800 seconds
         return updatedData;
     }
 
-    console.log(`No new items found for ${cacheKey}`);
+    console.log(`No New Items Found For ${cacheKey}`);
     return existingData;
 }
 
@@ -225,8 +224,11 @@ async function processRawData(rawData, type) {
             if (!posterAvailable) poster = item['big-image'];
 
             return {
-                id, type, name: decodeTitle(item.title),
-                poster, posterShape: 'poster', background,
+                id, 
+                type, 
+                name: decodeTitle(item.title),
+                poster, 
+                posterShape: 'poster', background,
                 description: meta?.description || `${decodeTitle(item.title)} (${item['release-year']}) - ${item.genre}`,
                 recommendation: item.recommendation || "",
                 releaseInfo: item['release-year'] ? `${item['release-year']}` : (item['streaming-date'] || "Unknown"),
@@ -258,7 +260,7 @@ builder.defineCatalogHandler(async (args) => {
     const type = args.type;
 
     if (type !== 'movie' && type !== 'series') {
-        console.log(`Skipping invalid type: ${type}`);
+        console.log(`Skipping Invalid Type: ${type}`);
         return { metas: [] };
     }
 
@@ -273,9 +275,9 @@ builder.defineCatalogHandler(async (args) => {
         try {
             globalData = await fetchAndCacheGlobalData(type);
             cache.set(globalCacheKey, globalData);
-            console.log(`Cached raw global data for: ${globalCacheKey}`);
+            console.log(`Cached Raw Global Data For: ${globalCacheKey}`);
         } catch (error) {
-            console.error(`Failed to fetch global data: ${error.message}`);
+            console.error(`Failed To Fetch Global Data: ${error.message}`);
             return { metas: [] };
         }
     }
@@ -285,11 +287,11 @@ builder.defineCatalogHandler(async (args) => {
     const rpdbCacheKey = `rpdb-valid-${config.rpdbApiKey}`;
     if (config?.rpdbApiKey) {
         isRPDBKeyValid = cache.get(rpdbCacheKey) ?? await validateRPDBKey(config.rpdbApiKey).catch(err => {
-            console.error(`Failed to validate RPDB key: ${err.message}`);
+            console.error(`Failed To Validate RPDB Key: ${err.message}`);
             return false;
         });
         cache.set(rpdbCacheKey, isRPDBKeyValid);
-        !isRPDBKeyValid && console.log('RPDB API key is invalid');
+        !isRPDBKeyValid && console.log('RPDB API Key Is Invalid');
     }
 
     // Step 3: Apply RPDB poster updates (if API key is valid)
@@ -305,14 +307,14 @@ builder.defineCatalogHandler(async (args) => {
 
     // Step 4: Filter by language (if selected)
     if (selectedLanguage) {
-        console.log(`Filtering data for Language: ${selectedLanguage}`);
+        console.log(`Filtering Data For Language: ${selectedLanguage}`);
         metasToReturn = metasToReturn.filter(item =>
             Array.isArray(item.languages) && item.languages.includes(selectedLanguage)
         );
     }
     // Step 5: Filter by recommendation (if selected)
     if (selectedRecommendation && filters.includes(selectedRecommendation)) {
-        console.log(`Filtering data for Recommendation: ${selectedRecommendation}`);
+        console.log(`Filtering Data For Recommendation: ${selectedRecommendation}`);
         metasToReturn = metasToReturn.filter(item => {
             // Map the alphabetic recommendation to its human-readable equivalent
             const mappedRecommendation = recommendationMapping[item.recommendation];
