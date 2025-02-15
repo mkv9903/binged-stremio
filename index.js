@@ -162,43 +162,77 @@ function decodeTitle(title) {
 }
 
 // Function to fetch and cache global data
-async function fetchAndCacheGlobalData(type, isInitialFetch = false) {
+async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetchLimit = 500, refreshFetchLimit = 50) {
     const cacheKey = `global-${type}`;
 
-    // Fetch all 500 items on the first run
-    if (isInitialFetch) {
-        console.log(`Fetching All Data For ${cacheKey}...`);
-        const rawData = await fetchBingedData(type, 0, 500);
-        const metas = await processRawData(rawData.data, type);
-        cache.set(cacheKey, metas, 604800); // 7 days = 604,800 seconds
-        console.log(`Cached ${metas.length} Items For ${cacheKey} With A TTL of 7 Days.`);
-        return metas;
-    }
+    try {
+        if (isInitialFetch) {
+            console.log(`Fetching All Data For ${cacheKey}...`);
+            const rawData = await fetchBingedData(type, 0, initialFetchLimit);
+            const metas = await processRawData(rawData.data, type);
+            await cache.set(cacheKey, metas, 604800); // 7 days = 604,800 seconds
+            console.log(`Cached ${metas.length} Items For ${cacheKey} With A TTL of 7 Days.`);
+            return metas;
+        }
 
-    // On subsequent refreshes, fetch only the latest 50 items
-    console.log(`Fetching Latest Data For ${cacheKey}...`);
-    const latestRawData = await fetchBingedData(type, 0, 50);
-    const latestMetas = await processRawData(latestRawData.data, type);
+        console.log(`Fetching Latest Data For ${cacheKey}...`);
+        const latestRawData = await fetchBingedData(type, 0, refreshFetchLimit);
+        const latestMetas = await processRawData(latestRawData.data, type);
 
-    // Get existing data from cache
-    const existingData = cache.get(cacheKey) || [];
+        const existingData = (await cache.get(cacheKey)) || [];
 
-    // Filter out duplicates by comparing IDs
-    const newMetas = latestMetas.filter(newItem => 
-        !existingData.some(existingItem => existingItem.id === newItem.id)
-    );
+        // Create a Map to track items by name (case-insensitive)
+        const nameToItemMap = new Map();
 
-    // If there are new items, append them to the existing data
-    if (newMetas.length > 0) {
-        console.log(`Adding ${newMetas.length} New Items To ${cacheKey}`);
-        //console.log("New items to add:", newMetas);
-        const updatedData = [...newMetas, ...existingData];
-        cache.set(cacheKey, updatedData, 604800); // 7 days = 604,800 seconds
+        // Helper function to check if an ID starts with "tt"
+        const isTTId = (id) => id.startsWith("tt");
+
+        // Add existing items to the Map
+        for (const item of existingData) {
+            const lowerCaseName = item.name.toLowerCase();
+            if (!nameToItemMap.has(lowerCaseName)) {
+                nameToItemMap.set(lowerCaseName, item);
+            } else {
+                // If a duplicate exists, prioritize the item with a "tt" ID
+                const existingItem = nameToItemMap.get(lowerCaseName);
+                if (isTTId(newItem.id) && !isTTId(existingItem.id)) {
+                    console.log(`Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
+                    nameToItemMap.set(lowerCaseName, newItem);
+                }
+            }
+        }
+
+        // Add new items to the Map, prioritizing "tt" IDs
+        for (const newItem of latestMetas) {
+            const lowerCaseName = newItem.name.toLowerCase();
+            if (!nameToItemMap.has(lowerCaseName)) {
+                nameToItemMap.set(lowerCaseName, newItem);
+            } else {
+                // If a duplicate exists, prioritize the item with a "tt" ID
+                const existingItem = nameToItemMap.get(lowerCaseName);
+                if (isTTId(newItem.id) && !isTTId(existingItem.id)) {
+                    console.log(`Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
+                    nameToItemMap.set(lowerCaseName, newItem);
+                }
+            }
+        }
+
+        // Convert the Map back to an array
+        const updatedData = Array.from(nameToItemMap.values());
+
+        // Update the cache if there are changes
+        if (updatedData.length !== existingData.length) {
+            console.log(`Updating ${cacheKey} with ${updatedData.length - existingData.length} new or prioritized items.`);
+            await cache.set(cacheKey, updatedData, 604800); // 7 days = 604,800 seconds
+        } else {
+            console.log(`No New Items Found For ${cacheKey}`);
+        }
+
         return updatedData;
+    } catch (error) {
+        console.error(`Error in fetchAndCacheGlobalData for ${cacheKey}:`, error);
+        throw error;
     }
-
-    console.log(`No New Items Found For ${cacheKey}`);
-    return existingData;
 }
 
 // Helper function to process raw data into metas
