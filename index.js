@@ -166,26 +166,25 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
     const cacheKey = `global-${type}`;
 
     try {
+        // Fetch data based on the fetch type
+        const fetchLimit = isInitialFetch ? initialFetchLimit : refreshFetchLimit;
+        console.log(`Fetching ${isInitialFetch ? 'All' : 'Latest'} Data For ${cacheKey}...`);
+        const rawData = await fetchBingedData(type, 0, fetchLimit);
+        const newMetas = await processRawData(rawData.data, type);
+
         if (isInitialFetch) {
-            console.log(`Fetching All Data For ${cacheKey}...`);
-            const rawData = await fetchBingedData(type, 0, initialFetchLimit);
-            const metas = await processRawData(rawData.data, type);
-            await cache.set(cacheKey, metas, 604800); // 7 days = 604,800 seconds
-            console.log(`Cached ${metas.length} Items For ${cacheKey} With A TTL of 7 Days.`);
-            return metas;
+            // Cache the initial data
+            await cache.set(cacheKey, newMetas, 604800); // 7 days
+            console.log(`Cached ${newMetas.length} Items For ${cacheKey} With A TTL of 7 Days.`);
+            return newMetas;
         }
 
-        console.log(`Fetching Latest Data For ${cacheKey}...`);
-        const latestRawData = await fetchBingedData(type, 0, refreshFetchLimit);
-        const latestMetas = await processRawData(latestRawData.data, type);
-
+        // Merge new data with existing data
         const existingData = (await cache.get(cacheKey)) || [];
-
-        // Create a Map to track items by name (case-insensitive)
         const nameToItemMap = new Map();
 
         // Helper function to check if an ID starts with "tt"
-        const isTTId = (id) => id.startsWith("tt");
+        const isTTId = (id) => id?.startsWith("tt");
 
         // Add existing items to the Map
         for (const item of existingData) {
@@ -195,15 +194,15 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
             } else {
                 // If a duplicate exists, prioritize the item with a "tt" ID
                 const existingItem = nameToItemMap.get(lowerCaseName);
-                if (isTTId(newItem.id) && !isTTId(existingItem.id)) {
-                    console.log(`Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
-                    nameToItemMap.set(lowerCaseName, newItem);
+                if (isTTId(item.id) && !isTTId(existingItem.id)) {
+                    console.log(`Prioritizing item with tt ID: ${item.id} over ${existingItem.id}`);
+                    nameToItemMap.set(lowerCaseName, item);
                 }
             }
         }
 
         // Add new items to the Map, prioritizing "tt" IDs
-        for (const newItem of latestMetas) {
+        for (const newItem of newMetas) {
             const lowerCaseName = newItem.name.toLowerCase();
             if (!nameToItemMap.has(lowerCaseName)) {
                 nameToItemMap.set(lowerCaseName, newItem);
@@ -221,9 +220,9 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
         const updatedData = Array.from(nameToItemMap.values());
 
         // Update the cache if there are changes
-        if (updatedData.length !== existingData.length) {
+        if (JSON.stringify(updatedData) !== JSON.stringify(existingData)) {
             console.log(`Updating ${cacheKey} with ${updatedData.length - existingData.length} new or prioritized items.`);
-            await cache.set(cacheKey, updatedData, 604800); // 7 days = 604,800 seconds
+            await cache.set(cacheKey, updatedData, 604800); // 7 days
         } else {
             console.log(`No New Items Found For ${cacheKey}`);
         }
