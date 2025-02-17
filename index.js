@@ -69,13 +69,13 @@ async function prefetchData() {
 
 // Function to refresh data (fetch only the latest 50 items)
 async function refreshCatalogData() {
-    console.log("Refreshing Global Catalog Data...");
+    //console.log("Refreshing Global Catalog Data...");
     try {
         await Promise.all([
             fetchAndCacheGlobalData("movie"), // Fetch latest 50 items for movies
             fetchAndCacheGlobalData("series") // Fetch latest 50 items for series
         ]);
-        console.log("Global Catalog Data Refreshed.");
+        //console.log("Global Catalog Data Refreshed.");
     } catch (error) {
         console.error("Error Refreshing Global Catalog Data:", error.message);
     } finally {
@@ -187,41 +187,35 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
         const isTTId = (id) => id?.startsWith("tt");
 
         // Add existing items to the Map
-        for (const item of existingData) {
+        existingData.forEach((item) => {
             const lowerCaseName = item.name.toLowerCase();
-            if (!nameToItemMap.has(lowerCaseName)) {
+            if (!nameToItemMap.has(lowerCaseName) || (isTTId(item.id) && !isTTId(nameToItemMap.get(lowerCaseName)?.id))) {
                 nameToItemMap.set(lowerCaseName, item);
-            } else {
-                // If a duplicate exists, prioritize the item with a "tt" ID
-                const existingItem = nameToItemMap.get(lowerCaseName);
-                if (isTTId(item.id) && !isTTId(existingItem.id)) {
-                    console.log(`Prioritizing item with tt ID: ${item.id} over ${existingItem.id}`);
-                    nameToItemMap.set(lowerCaseName, item);
-                }
             }
-        }
+        });
 
         // Add new items to the Map, prioritizing "tt" IDs
-        for (const newItem of newMetas) {
+        const newItems = [];
+        newMetas.forEach((newItem) => {
             const lowerCaseName = newItem.name.toLowerCase();
             if (!nameToItemMap.has(lowerCaseName)) {
+                newItems.push(newItem); // Add new items to a separate array
                 nameToItemMap.set(lowerCaseName, newItem);
-            } else {
-                // If a duplicate exists, prioritize the item with a "tt" ID
+            } else if (isTTId(newItem.id)) {
                 const existingItem = nameToItemMap.get(lowerCaseName);
-                if (isTTId(newItem.id) && !isTTId(existingItem.id)) {
+                if (!isTTId(existingItem.id)) {
                     console.log(`Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
                     nameToItemMap.set(lowerCaseName, newItem);
                 }
             }
-        }
+        });
 
-        // Convert the Map back to an array
-        const updatedData = Array.from(nameToItemMap.values());
+        // Combine new items (at the top) with existing items
+        const updatedData = [...newItems, ...Array.from(nameToItemMap.values()).filter(item => !newItems.includes(item))];
 
         // Update the cache if there are changes
         if (JSON.stringify(updatedData) !== JSON.stringify(existingData)) {
-            console.log(`Updating ${cacheKey} with ${updatedData.length - existingData.length} new or prioritized items.`);
+            console.log(`Updating ${cacheKey} with ${newItems.length} new items at the top.`);
             await cache.set(cacheKey, updatedData, 604800); // 7 days
         } else {
             console.log(`No New Items Found For ${cacheKey}`);
@@ -230,6 +224,12 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
         return updatedData;
     } catch (error) {
         console.error(`Error in fetchAndCacheGlobalData for ${cacheKey}:`, error);
+        // Optionally return stale data from cache if available
+        const staleData = await cache.get(cacheKey);
+        if (staleData) {
+            console.warn(`Returning stale data for ${cacheKey} due to error.`);
+            return staleData;
+        }
         throw error;
     }
 }
