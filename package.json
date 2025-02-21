@@ -1,23 +1,23 @@
 {
-    "name": "stremio-binged-addon",
-    "version": "1.0.0",
-    "description": "Binged Catalog by Asaddon",
-    "scripts": {
-      "start": "node --max-old-space-size=512 index.js",
+  "name": "stremio-binged-addon",
+  "version": "1.0.0",
+  "description": "Binged Catalog by Asaddon",
+  "scripts": {
+      "start": "node --max-old-space-size=512 index.js NODE_NO_WARNINGS=1",
       "dev": "nodemon index.js"
-    },
-    "keywords": [],
-    "author": "Asaddon",
-    "license": "ISC",
-    "dependencies": {
+  },
+  "keywords": [],
+  "author": "Asaddon",
+  "license": "ISC",
+  "dependencies": {
       "axios": "latest",
+      "dotenv": "latest",
       "he": "latest",
       "name-to-imdb": "latest",
       "node-cache": "latest",
       "stremio-addon-sdk": "latest"
-    },
-    "devDependencies": {
+  },
+  "devDependencies": {
       "nodemon": "latest"
-    }
   }
-  
+}

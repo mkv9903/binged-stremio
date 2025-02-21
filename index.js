@@ -4,28 +4,35 @@ const NodeCache = require('node-cache');
 const nameToImdb = require('name-to-imdb');
 const getImdbIdAsync = promisify(nameToImdb);
 const he = require('he');
+require('dotenv').config();
+
 // Global error handler for unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
+
 const cache = new NodeCache({ stdTTL: 604800, checkperiod: 1800, useClones: false });
-const filters = [ "Must Watch", "Good", "Satisfactory", "Passable", "Poor", "Skip" ];
+const filters = ["Must Watch", "Good", "Satisfactory", "Passable", "Poor", "Skip"];
 const recommendationMapping = { "A": "Must Watch", "B": "Good", "H": "Satisfactory", "C": "Passable", "D": "Poor", "F": "Skip" };
 const supportedLanguages = [
     "Hindi", "English", "Telugu", "Tamil", "Malayalam", "Kannada", "Abkhazian", "Afar", "Afrikaans", "Akan", "Albanian", "Amharic", "Arabic", "Aragonese", "Armenian", "Assamese", "Avaric", "Avestan", "Aymara", "Azerbaijani", "Bambara", "Bashkir", "Basque", "Belarusian", "Bengali", "Bhojpuri", "Bislama", "Bosnian", "Breton", "Bulgarian", "Burmese", "Cantonese", "Catalan", "Chamorro", "Chechen", "Chichewa", "Chuvash", "Cornish", "Corsican", "Cree", "Croatian", "Czech", "Danish", "Divehi", "Dutch", "Dzongkha", "Esperanto", "Estonian", "Ewe", "Faroese", "Fijian", "Finnish", "French", "Frisian", "Fulah", "Gaelic", "Galician", "Ganda", "Georgian", "German", "Greek", "Guarani", "Gujarati", "Haitian", "Haryanvi", "Hausa", "Hebrew", "Herero", "Hiri Motu", "Hungarian", "Icelandic", "Ido", "Igbo", "Indonesian", "Interlingua", "Interlingue", "Inuktitut", "Inupiaq", "Irish", "Italian", "Japanese", "Javanese", "Kalaallisut", "Kanuri", "Kashmiri", "Kazakh", "Khmer", "Kikuyu", "Kinyarwanda", "Kirghiz", "Komi", "Kongo", "Korean", "Kuanyama", "Kurdish", "Lao", "Latin", "Latvian", "Letzeburgesch", "Limburgish", "Lingala", "Lithuanian", "Luba-Katanga", "Macedonian", "Malagasy", "Malay", "Maltese", "Mandarin", "Manipuri", "Manx", "Maori", "Marathi", "Marshall", "Moldavian", "Mongolian", "Nauru", "Navajo", "Ndebele", "Ndonga", "Nepali", "Northern Sami", "Norwegian", "Norwegian Bokmål", "Norwegian Nynorsk", "Occitan", "Ojibwa", "Oriya", "Oromo", "Ossetian", "Other", "Pali", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Quechua", "Raeto-Romance", "Romanian", "Rundi", "Russian", "Samoan", "Sango", "Sanskrit", "Sardinian", "Serbian", "Serbo-Croatian", "Shona", "Sindhi", "Sinhalese", "Slavic", "Slovak", "Slovenian", "Somali", "Sotho", "Spanish", "Sundanese", "Swahili", "Swati", "Swedish", "Tagalog", "Tahitian", "Tajik", "Tatar", "Thai", "Tibetan", "Tigrinya", "Tonga", "Tsonga", "Tswana", "Turkish", "Turkmen", "Twi", "Uighur", "Ukrainian", "Urdu", "Uzbek", "Venda", "Vietnamese", "Volapük", "Walloon", "Welsh", "Wolof", "Xhosa", "Yi", "Yiddish", "Yoruba", "Zhuang", "Zulu"
 ];
+
 // Render Refresh Start
-const renderUrl = 'https://binged-stremio-0lfm.onrender.com';
+const renderUrl = 'https://binged-stremio-0s6a.onrender.com';
 const interval = 10 * 60 * 1000; // 10 minutes in milliseconds
 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Karachi', timeZoneName: 'long' };
 
 setInterval(() => {
-  const date = new Date();
-  fetch(renderUrl)
-    .then(res => console.info(`Reloaded at ${date.toLocaleString('en-US', options)}: Status ${res.ok ? res.status : 'Error'}`))
-    .catch(err => console.error(`Error at ${date.toLocaleString('en-US', options)}: (${err.message})`));
+    const date = new Date();
+    fetch(renderUrl)
+        .then(res => console.info(`Reloaded at ${date.toLocaleString('en-US', options)}: Status ${res.ok ? res.status : 'Error'}`))
+        .catch(err => console.error(`Error at ${date.toLocaleString('en-US', options)}: (${err.message})`));
 }, interval);
 // Render Refresh End
+
+// Get the special RPDB key from environment variable
+const specialRpdbKey = process.env.SPECIAL_RPDB_KEY;
 
 const builder = new addonBuilder({
     id: 'com.binged.latest',
@@ -35,8 +42,8 @@ const builder = new addonBuilder({
     "behaviorHints": {
         "configurable": true,
         "configurationRequired": false
-      },
-      config: [
+    },
+    config: [
         {
             key: 'rpdbApiKey',
             title: 'RPDB API Key',
@@ -45,8 +52,8 @@ const builder = new addonBuilder({
         }
     ],
     catalogs: [
-        { "type": "movie", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }]},
-        { "type": "series", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }]}
+        { "type": "movie", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }] },
+        { "type": "series", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }] }
     ],
     resources: ['catalog'],
     types: ['movie', 'series'],
@@ -58,8 +65,8 @@ async function prefetchData() {
     console.log("Starting Initial Global Data Fetch...");
     try {
         await Promise.all([
-            fetchAndCacheGlobalData("movie", true), // Fetch all 500 items for movies
-            fetchAndCacheGlobalData("series", true) // Fetch all 500 items for series
+            fetchAndCacheGlobalData("movie", true),
+            fetchAndCacheGlobalData("series", true)
         ]);
         console.log("Initial Global Data Fetch Completed.");
     } catch (error) {
@@ -69,26 +76,23 @@ async function prefetchData() {
 
 // Function to refresh data (fetch only the latest 50 items)
 async function refreshCatalogData() {
-    //console.log("Refreshing Global Catalog Data...");
     try {
         await Promise.all([
-            fetchAndCacheGlobalData("movie"), // Fetch latest 50 items for movies
-            fetchAndCacheGlobalData("series") // Fetch latest 50 items for series
+            fetchAndCacheGlobalData("movie"),
+            fetchAndCacheGlobalData("series")
         ]);
-        //console.log("Global Catalog Data Refreshed.");
     } catch (error) {
         console.error("Error Refreshing Global Catalog Data:", error.message);
     } finally {
-        // Schedule the next refresh after 1 hour
-        setTimeout(refreshCatalogData, 60 * 60 * 1000); // 1 hour = 60 minutes * 60 seconds * 1000 milliseconds
+        setTimeout(refreshCatalogData, 60 * 60 * 1000); // 1 hour
     }
 }
 
 // Initial fetch (fetch all 500 items)
 prefetchData().then(() => {
-    // Start the refresh loop after the first fetch completes
     setTimeout(refreshCatalogData, 60 * 60 * 1000); // First refresh after 1 hour
 });
+
 // Function to fetch data with pagination support
 async function fetchBingedData(type, start = 0, length = 50) {
     const url = 'https://www.binged.com/wp-admin/admin-ajax.php';
@@ -115,23 +119,42 @@ async function fetchBingedData(type, start = 0, length = 50) {
     });
 
     if (!response.ok) throw new Error(`Failed to fetch data: ${response.statusText}`);
-    //const date = new Date();
-    //const dateInKarachi = date.toLocaleString('en-US', options);
-    //console.log("API response date (Asia/Karachi):", dateInKarachi);
     return response.json();
 }
 
 // Convert title to IMDb ID
-async function getImdbId(title, year) {
+async function getImdbId(title, type) {
     if (!title?.trim()) return null;
     try {
-        const cleanedTitle = title.replace(/\s?\(.*?\)$/, '').replace(/#/g, '').trim();
-        return await getImdbIdAsync({ name: cleanedTitle, year }).catch((err) => {
-            console.error(`Error Fetching IMDb ID For "${cleanedTitle}" (${year}):`, err.message);
-            return null;
+        let cleanedTitle = he.decode(title)
+            .replace(/(:?\s*Season\s*\d+)/i, '')
+            .replace(/\s?\(.*?\)$/, '')
+            .replace(/#/g, '')
+            .trim();
+
+        const imdbId = await getImdbIdAsync({ name: cleanedTitle }).catch(() => null);
+        if (imdbId) return imdbId;
+
+        const suggestionUrl = `https://sg.media-imdb.com/suggests/${cleanedTitle.charAt(0).toLowerCase()}/${encodeURIComponent(cleanedTitle)}.json`;
+        const response = await fetch(suggestionUrl).catch(() => null);
+        if (!response || !response.ok) return null;
+
+        const text = await response.text();
+        const jsonpMatch = text.match(/imdb\$.*?\((.*)\)/);
+        if (!jsonpMatch || !jsonpMatch[1]) return null;
+
+        const data = JSON.parse(jsonpMatch[1]);
+        if (!data.d || !Array.isArray(data.d)) return null;
+
+        // Match based on type
+        const result = data.d.find(item => {
+            if (type === 'movie') return item.qid === 'movie';
+            if (type === 'series') return item.q === 'TV series' || item.q === 'TV mini-series';
+            return false; // Fallback for unexpected type
         });
+        return result && result.id ? result.id : null;
     } catch (err) {
-        console.error(`Unexpected Error Fetching IMDb ID For "${title}" (${year}):`, err.message);
+        console.error(`Unexpected Error Fetching IMDb ID For "${title}" (type: ${type}): ${err.message}`);
         return null;
     }
 }
@@ -148,15 +171,12 @@ async function getMetadata(imdbId, type) {
 }
 
 // Check if an image URL is valid
-async function isUrlAvailable(url, timeout = 5000) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+async function isUrlAvailable(url) {
     try {
-        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
-        clearTimeout(timeoutId);
+        const response = await fetch(url, { method: 'HEAD' });
         return response.ok;
-    } catch {
-        clearTimeout(timeoutId);
+    } catch (error) {
+        console.error(`URL Check Failed for ${url}: ${error.message}`);
         return false;
     }
 }
@@ -169,67 +189,61 @@ function decodeTitle(title) {
 // Function to fetch and cache global data
 async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetchLimit = 500, refreshFetchLimit = 50) {
     const cacheKey = `global-${type}`;
+    const specialRpdbCacheKey = specialRpdbKey ? `global-${type}-rpdb-${specialRpdbKey}` : null;
 
     try {
-        // Fetch data based on the fetch type
         const fetchLimit = isInitialFetch ? initialFetchLimit : refreshFetchLimit;
         console.log(`Fetching ${isInitialFetch ? 'All' : 'Latest'} Data For ${cacheKey}...`);
         const rawData = await fetchBingedData(type, 0, fetchLimit);
         const newMetas = await processRawData(rawData.data, type);
 
+        // Cache regular data
         if (isInitialFetch) {
-            // Cache the initial data
             await cache.set(cacheKey, newMetas, 604800); // 7 days
             console.log(`Cached ${newMetas.length} Items For ${cacheKey} With A TTL of 7 Days.`);
-            return newMetas;
+        } else {
+            const existingData = (await cache.get(cacheKey)) || [];
+            const updatedData = mergeNewData(existingData, newMetas);
+            if (JSON.stringify(updatedData) !== JSON.stringify(existingData)) {
+                console.log(`Updating ${cacheKey} with ${newMetas.length} new items at the top.`);
+                await cache.set(cacheKey, updatedData, 604800);
+            } else {
+                console.log(`No New Items Found For ${cacheKey}`);
+            }
         }
 
-        // Merge new data with existing data
-        const existingData = (await cache.get(cacheKey)) || [];
-        const nameToItemMap = new Map();
+        // Preprocess and cache for special RPDB key if defined
+        if (specialRpdbKey) {
+            const rpdbMetas = await Promise.all(newMetas.map(async (meta) => {
+                if (meta.id && /^tt\d+$/.test(meta.id)) {
+                    const rpdbPoster = `https://api.ratingposterdb.com/${specialRpdbKey}/imdb/poster-default/${meta.id}.jpg?fallback=true`;
+                    const isRpdbPosterValid = await isUrlAvailable(rpdbPoster);
+                    return {
+                        ...meta,
+                        poster: isRpdbPosterValid ? rpdbPoster : meta.poster // Only update if valid
+                    };
+                }
+                return meta;
+            }));
 
-        // Helper function to check if an ID starts with "tt"
-        const isTTId = (id) => id?.startsWith("tt");
-
-        // Add existing items to the Map
-        existingData.forEach((item) => {
-            const lowerCaseName = item.name.toLowerCase();
-            if (!nameToItemMap.has(lowerCaseName) || (isTTId(item.id) && !isTTId(nameToItemMap.get(lowerCaseName)?.id))) {
-                nameToItemMap.set(lowerCaseName, item);
-            }
-        });
-
-        // Add new items to the Map, prioritizing "tt" IDs
-        const newItems = [];
-        newMetas.forEach((newItem) => {
-            const lowerCaseName = newItem.name.toLowerCase();
-            if (!nameToItemMap.has(lowerCaseName)) {
-                newItems.push(newItem); // Add new items to a separate array
-                nameToItemMap.set(lowerCaseName, newItem);
-            } else if (isTTId(newItem.id)) {
-                const existingItem = nameToItemMap.get(lowerCaseName);
-                if (!isTTId(existingItem.id)) {
-                    console.log(`Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
-                    nameToItemMap.set(lowerCaseName, newItem);
+            if (isInitialFetch) {
+                await cache.set(specialRpdbCacheKey, rpdbMetas, 604800); // 7 days
+                console.log(`Cached ${rpdbMetas.length} Items For ${specialRpdbCacheKey} With A TTL of 7 Days.`);
+            } else {
+                const existingRpdbData = (await cache.get(specialRpdbCacheKey)) || [];
+                const updatedRpdbData = mergeNewData(existingRpdbData, rpdbMetas);
+                if (JSON.stringify(updatedRpdbData) !== JSON.stringify(existingRpdbData)) {
+                    console.log(`Updating ${specialRpdbCacheKey} with ${rpdbMetas.length} new items at the top.`);
+                    await cache.set(specialRpdbCacheKey, updatedRpdbData, 604800);
+                } else {
+                    console.log(`No New Items Found For ${specialRpdbCacheKey}`);
                 }
             }
-        });
-
-        // Combine new items (at the top) with existing items
-        const updatedData = [...newItems, ...Array.from(nameToItemMap.values()).filter(item => !newItems.includes(item))];
-
-        // Update the cache if there are changes
-        if (JSON.stringify(updatedData) !== JSON.stringify(existingData)) {
-            console.log(`Updating ${cacheKey} with ${newItems.length} new items at the top.`);
-            await cache.set(cacheKey, updatedData, 604800); // 7 days
-        } else {
-            console.log(`No New Items Found For ${cacheKey}`);
         }
 
-        return updatedData;
+        return newMetas; // Return regular data for consistency
     } catch (error) {
         console.error(`Error in fetchAndCacheGlobalData for ${cacheKey}:`, error);
-        // Optionally return stale data from cache if available
         const staleData = await cache.get(cacheKey);
         if (staleData) {
             console.warn(`Returning stale data for ${cacheKey} due to error.`);
@@ -239,9 +253,42 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
     }
 }
 
+// Helper function to merge new data with existing data
+function mergeNewData(existingData, newMetas) {
+    const nameToItemMap = new Map();
+    const isTTId = (id) => id?.startsWith("tt");
+
+    existingData.forEach((item) => {
+        const lowerCaseName = item.name.toLowerCase();
+        if (!nameToItemMap.has(lowerCaseName) || (isTTId(item.id) && !isTTId(nameToItemMap.get(lowerCaseName)?.id))) {
+            nameToItemMap.set(lowerCaseName, item);
+        }
+    });
+
+    const newItems = [];
+    newMetas.forEach((newItem) => {
+        const lowerCaseName = newItem.name.toLowerCase();
+        if (!nameToItemMap.has(lowerCaseName)) {
+            newItems.push(newItem);
+            nameToItemMap.set(lowerCaseName, newItem);
+        } else if (isTTId(newItem.id)) {
+            const existingItem = nameToItemMap.get(lowerCaseName);
+            if (!isTTId(existingItem.id)) {
+                console.log(`Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
+                nameToItemMap.set(lowerCaseName, newItem);
+            }
+        }
+    });
+
+    return [
+        ...newItems,
+        ...existingData.filter(item => !newItems.some(newItem => newItem.name.toLowerCase() === item.name.toLowerCase()))
+    ];
+}
+
 // Helper function to process raw data into metas
 async function processRawData(rawData, type) {
-    const imdbPromises = rawData.map(item => getImdbId(item.title, item['release-year']).catch(() => null));
+    const imdbPromises = rawData.map(item => getImdbId(item.title).catch(() => null));
     const imdbResults = await Promise.allSettled(imdbPromises);
 
     const metadataPromises = imdbResults.map((result, index) =>
@@ -262,34 +309,37 @@ async function processRawData(rawData, type) {
             if (!posterAvailable) poster = item.image;
 
             return {
-                id, 
-                type, 
+                id,
+                type,
                 name: decodeTitle(item.title),
-                poster, 
-                posterShape: 'poster', background,
+                poster,
+                posterShape: 'poster',
+                background,
                 description: meta?.description || `${decodeTitle(item.title)} (${item['release-year']}) - ${item.genre}`,
                 recommendation: item.recommendation || "",
                 releaseInfo: item['release-year'] ? `${item['release-year']}` : (item['streaming-date'] || "Unknown"),
                 genres: meta?.genres || item.genre.split(', '),
                 languages: item.languages ? item.languages.split(', ') : [],
-                cast: meta?.cast || [], director: meta?.director || [], writer: meta?.writer || [],
-                imdbRating: meta?.imdbRating || null, runtime: meta?.runtime || null,
-                trailers: meta?.trailers || [], links: meta?.links || []
+                cast: meta?.cast || [],
+                director: meta?.director || [],
+                writer: meta?.writer || [],
+                imdbRating: meta?.imdbRating || null,
+                runtime: meta?.runtime || null,
+                trailers: meta?.trailers || [],
+                links: meta?.links || []
             };
         })
     );
 }
-
 
 // Function to check if RPDB key is valid
 async function validateRPDBKey(rpdbKey) {
     try {
         const response = await fetch(`https://api.ratingposterdb.com/${rpdbKey}/isValid`);
         const data = await response.json();
-        return data?.valid === true; // Return true if the key is valid
+        return data?.valid === true;
     } catch (e) {
-        // Handle error (e.g., network issue, invalid key, etc.)
-        return false; // Return false if validation fails
+        return false;
     }
 }
 
@@ -298,50 +348,66 @@ builder.defineCatalogHandler(async (args) => {
     const type = args.type;
 
     if (type !== 'movie' && type !== 'series') {
-        console.log(`Skipping Invalid Type: ${type}`);
         return { metas: [] };
     }
 
-    const config = args.config || {}; 
+    const config = args.config || {};
     const selectedLanguage = args.extra?.genre;
     const globalCacheKey = `global-${type}`;
+    const specialRpdbCacheKey = specialRpdbKey ? `global-${type}-rpdb-${specialRpdbKey}` : null;
     const selectedRecommendation = args.extra?.recommendation;
 
-    // Step 1: Fetch raw global data (cached)
-    let globalData = cache.get(globalCacheKey);
-    if (!globalData) {
-        try {
-            globalData = await fetchAndCacheGlobalData(type);
-            cache.set(globalCacheKey, globalData);
-            console.log(`Cached Raw Global Data For: ${globalCacheKey}`);
-        } catch (error) {
-            console.error(`Failed To Fetch Global Data: ${error.message}`);
-            return { metas: [] };
+    // Step 1: Determine which cache to use with logging
+    let globalData;
+    if (config.rpdbApiKey === specialRpdbKey) {
+        globalData = cache.get(specialRpdbCacheKey);
+        if (!globalData) {
+            try {
+                globalData = await fetchAndCacheGlobalData(type);
+                cache.set(specialRpdbCacheKey, globalData);
+            } catch (error) {
+                console.error(`Failed To Fetch Preprocessed Data: ${error.message}`);
+                return { metas: [] };
+            }
+        }
+    } else {
+        globalData = cache.get(globalCacheKey);
+        if (!globalData) {
+            try {
+                globalData = await fetchAndCacheGlobalData(type);
+                cache.set(globalCacheKey, globalData);
+            } catch (error) {
+                console.error(`Failed To Fetch Global Data: ${error.message}`);
+                return { metas: [] };
+            }
         }
     }
 
-    // Step 2: Validate RPDB API key (cached)
+    // Step 2: Validate RPDB API key (for non-special keys only)
     let isRPDBKeyValid = false;
-    const rpdbCacheKey = `rpdb-valid-${config.rpdbApiKey}`;
-    if (config?.rpdbApiKey) {
-        isRPDBKeyValid = cache.get(rpdbCacheKey) ?? await validateRPDBKey(config.rpdbApiKey).catch(err => {
+    const rpdbValidationCacheKey = `rpdb-valid-${config.rpdbApiKey}`;
+    if (config.rpdbApiKey !== specialRpdbKey) {
+        isRPDBKeyValid = cache.get(rpdbValidationCacheKey) ?? await validateRPDBKey(config.rpdbApiKey).catch(err => {
             console.error(`Failed To Validate RPDB Key: ${err.message}`);
             return false;
         });
-        cache.set(rpdbCacheKey, isRPDBKeyValid);
+        cache.set(rpdbValidationCacheKey, isRPDBKeyValid);
         !isRPDBKeyValid && console.log('RPDB API Key Is Invalid');
     }
 
-    // Step 3: Apply RPDB poster updates (if API key is valid)
-    let metasToReturn = globalData.map(meta => {
-        if (isRPDBKeyValid && meta.id && /^tt\d+$/.test(meta.id)) {
-            return { 
-                ...meta, 
-                poster: `https://api.ratingposterdb.com/${config.rpdbApiKey}/imdb/poster-default/${meta.id}.jpg?fallback=true`
-            };
-        }
-        return meta;
-    });
+    // Step 3: Apply RPDB poster updates (only for non-special keys)
+    let metasToReturn = globalData;
+    if (config.rpdbApiKey !== specialRpdbKey && isRPDBKeyValid) {
+        metasToReturn = globalData.map(meta => {
+            if (meta.id && /^tt\d+$/.test(meta.id)) {
+                return {
+                    ...meta,
+                    poster: `https://api.ratingposterdb.com/${config.rpdbApiKey}/imdb/poster-default/${meta.id}.jpg?fallback=true`
+                };
+            }
+            return meta;
+        });
+    }
 
     // Step 4: Filter by language (if selected)
     if (selectedLanguage) {
@@ -350,19 +416,17 @@ builder.defineCatalogHandler(async (args) => {
             Array.isArray(item.languages) && item.languages.includes(selectedLanguage)
         );
     }
+
     // Step 5: Filter by recommendation (if selected)
     if (selectedRecommendation && filters.includes(selectedRecommendation)) {
         console.log(`Filtering Data For Recommendation: ${selectedRecommendation}`);
         metasToReturn = metasToReturn.filter(item => {
-            // Map the alphabetic recommendation to its human-readable equivalent
             const mappedRecommendation = recommendationMapping[item.recommendation];
             return mappedRecommendation === selectedRecommendation;
         });
     }
 
-
     return { metas: metasToReturn };
 });
 
-
-serveHTTP(builder.getInterface(), { port: 7000, cacheMaxAge: 3600, staleRevalidate:3600, staleError:3600 });
+serveHTTP(builder.getInterface(), { port: 7000, cacheMaxAge: 3600, staleRevalidate: 3600, staleError: 3600 });

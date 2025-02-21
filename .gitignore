@@ -2,3 +2,4 @@
 .vscode/settings.json
 package-lock.json
 /.lightning_studio
+.env
