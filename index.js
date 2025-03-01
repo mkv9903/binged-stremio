@@ -193,7 +193,7 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
 
     try {
         const fetchLimit = isInitialFetch ? initialFetchLimit : refreshFetchLimit;
-        console.log(`${getPKTTime()} - Fetching ${isInitialFetch ? 'All' : 'Latest'} Data For ${cacheKey}...`);
+        //console.log(`${getPKTTime()} - Fetching ${isInitialFetch ? 'All' : 'Latest'} Data For ${cacheKey}...`);
         const rawData = await fetchBingedData(type, 0, fetchLimit);
         const newMetas = await processRawData(rawData.data, type);
 
@@ -214,7 +214,7 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
                 console.log(`${getPKTTime()} - Updating ${cacheKey} with ${newItemCount} new items at the top.`);
                 await cache.set(cacheKey, updatedData, 604800);
             } else {
-                console.log(`${getPKTTime()} - No New Items Found For ${cacheKey}`);
+                //console.log(`${getPKTTime()} - No New Items Found For ${cacheKey}`);
             }
         }
 
@@ -248,7 +248,7 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
                     console.log(`${getPKTTime()} - Updating ${specialRpdbCacheKey} with ${newRpdbItemCount} new items at the top.`);
                     await cache.set(specialRpdbCacheKey, updatedRpdbData, 604800);
                 } else {
-                    console.log(`${getPKTTime()} - No New Items Found For ${specialRpdbCacheKey}`);
+                    //console.log(`${getPKTTime()} - No New Items Found For ${specialRpdbCacheKey}`);
                 }
             }
         }
