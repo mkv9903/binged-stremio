@@ -286,7 +286,7 @@ function mergeNewData(existingData, newMetas) {
         } else if (isTTId(newItem.id)) {
             const existingItem = nameToItemMap.get(lowerCaseName);
             if (!isTTId(existingItem.id)) {
-                console.log(`${getPKTTime()} - Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
+                //console.log(`${getPKTTime()} - Prioritizing item with tt ID: ${newItem.id} over ${existingItem.id}`);
                 nameToItemMap.set(lowerCaseName, newItem);
             }
         }
@@ -400,11 +400,11 @@ builder.defineCatalogHandler(async (args) => {
     const rpdbValidationCacheKey = `rpdb-valid-${config.rpdbApiKey}`;
     if (config.rpdbApiKey !== specialRpdbKey) {
         isRPDBKeyValid = cache.get(rpdbValidationCacheKey) ?? await validateRPDBKey(config.rpdbApiKey).catch(err => {
-            console.error(`${getPKTTime()} - Failed To Validate RPDB Key: ${err.message}`);
+            //console.error(`${getPKTTime()} - Failed To Validate RPDB Key: ${err.message}`);
             return false;
         });
         cache.set(rpdbValidationCacheKey, isRPDBKeyValid);
-        !isRPDBKeyValid && console.log(`${getPKTTime()} - RPDB API Key Is Invalid`);
+        //!isRPDBKeyValid && console.log(`${getPKTTime()} - RPDB API Key Is Invalid`);
     }
 
     // Step 3: Apply RPDB poster updates (only for non-special keys)
