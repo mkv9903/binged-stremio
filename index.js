@@ -84,7 +84,7 @@ prefetchData().then(() => {
 async function fetchBingedData(type, start = 0, length = 50, retries = 3, delay = 5000) {
     const url = 'https://www.binged.com/wp-admin/admin-ajax.php';
     const body = new URLSearchParams({
-        'filters[category][]': type === 'movie' ? 'Film' : type === 'series' ? 'TV show' : [],
+        'filters[category][]': type === 'movie' ? 'Film' : type === 'series' ? 'Tv show' : [],
         'filters[mode]': 'streaming-now',
         'filters[page]': 0,
         action: 'mi_events_load_data',
