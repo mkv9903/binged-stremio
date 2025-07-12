@@ -23,9 +23,9 @@ const specialRpdbKey = process.env.SPECIAL_RPDB_KEY;
 
 const builder = new addonBuilder({
     id: 'com.binged.latest',
-    version: '3.0.0',
+    version: '4.0.0',
     name: 'Binged! OTT Releases Catalog',
-    description: 'Provides the latest OTT movies and TV shows catalog available to stream on streaming platforms from Binged.com by Asaddon',
+    description: 'Provides the latest OTT movies and TV shows catalog available to stream on streaming platforms from Binged.com',
     "behaviorHints": {
         "configurable": true,
         "configurationRequired": false
@@ -36,6 +36,12 @@ const builder = new addonBuilder({
             title: 'RPDB API Key',
             type: 'text',
             required: false
+        }
+    ],
+    extra: [
+        {
+            name: 'skip',
+            isRequired: false,
         }
     ],
     catalogs: [
@@ -81,7 +87,7 @@ prefetchData().then(() => {
 });
 
 // Function to fetch data with pagination support
-async function fetchBingedData(type, start = 0, length = 50, retries = 3, delay = 5000) {
+async function fetchBingedData(type, start = 0, length = 500, retries = 3, delay = 5000) {
     const url = 'https://www.binged.com/wp-admin/admin-ajax.php';
     const body = new URLSearchParams({
         'filters[category][]': type === 'movie' ? 'Film' : type === 'series' ? 'Tv show' : [],
@@ -314,7 +320,7 @@ async function processRawData(rawData, type) {
             const meta = metadataResults[index]?.status === 'fulfilled' ? metadataResults[index].value : null;
             const id = imdbId || `binged:${item.id}`;
 
-            let poster = imdbId ? `https://live.metahub.space/poster/small/${imdbId}/img` : item.image;
+            let poster = imdbId ? `https://live.metahub.space/poster/small/${imdbId}/img` : item['big-image'];
             let background = imdbId ? `https://live.metahub.space/background/medium/${imdbId}/img` : item.image;
 
             const [posterAvailable] = await Promise.all([isUrlAvailable(poster)]);
