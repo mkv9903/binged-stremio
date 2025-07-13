@@ -371,11 +371,13 @@ builder.defineCatalogHandler(async (args) => {
 
     const config = args.config || {};
     const selectedLanguage = args.extra?.genre;
-    const globalCacheKey = `global-${type}`;
-    const specialRpdbCacheKey = specialRpdbKey ? `global-${type}-rpdb-${specialRpdbKey}` : null;
     const selectedRecommendation = args.extra?.recommendation;
+    const skip = parseInt(args.extra?.skip) || 0; // Handle pagination skip
+    const limit = 40; // Set your desired limit for items per page
 
     // Step 1: Determine which cache to use with logging
+    const globalCacheKey = `global-${type}`;
+    const specialRpdbCacheKey = specialRpdbKey ? `global-${type}-rpdb-${specialRpdbKey}` : null;
     let globalData;
     if (config.rpdbApiKey === specialRpdbKey) {
         globalData = cache.get(specialRpdbCacheKey);
@@ -444,6 +446,10 @@ builder.defineCatalogHandler(async (args) => {
         });
     }
 
+    // Step 6: Apply pagination to limit the number of items
+    metasToReturn = metasToReturn.slice(skip, skip + limit);
+
+    //console.log(`${getPKTTime()} - Returning ${metasToReturn.length} items for ${type} (skip: ${skip}, limit: ${limit})`);
     return { metas: metasToReturn };
 });
 
