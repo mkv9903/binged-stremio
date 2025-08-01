@@ -321,10 +321,10 @@ async function processRawData(rawData, type) {
             const id = imdbId || `binged:${item.id}`;
 
             let poster = imdbId ? `https://live.metahub.space/poster/small/${imdbId}/img` : item['big-image'];
-            let background = imdbId ? `https://live.metahub.space/background/medium/${imdbId}/img` : item.image;
+            let background = imdbId ? `https://live.metahub.space/background/medium/${imdbId}/img` : item['big-image'];
 
             const [posterAvailable] = await Promise.all([isUrlAvailable(poster)]);
-            if (!posterAvailable) poster = item.image;
+            if (!posterAvailable) poster = item['big-image']
 
             return {
                 id,
