@@ -5,6 +5,9 @@ const nameToImdb = require('name-to-imdb');
 const getImdbIdAsync = promisify(nameToImdb);
 const he = require('he');
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+
 function getPKTTime() { return new Date().toLocaleString("en-US", { timeZone: "Asia/Karachi", year: "2-digit", month: "2-digit", day: "2-digit", hour12: true, hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " PKT"; }
 // Global error handler for unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
@@ -45,8 +48,8 @@ const builder = new addonBuilder({
         }
     ],
     catalogs: [
-        { "type": "movie", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }] },
-        { "type": "series", "id": "binged-latest", "name": "Binged - Latest", "extra": [{ "name": "genre", "isRequired": false, "options": supportedLanguages }, { "name": "skip", "isRequired": false }, { "name": "recommendation", "isRequired": false, "options": filters }] }
+        { "type": "movie", "id": "Telugu-Movies", "name": "Telugu - Movies", "extra": [{ "name": "skip", "isRequired": false }] },
+        {"type": "series", "id": "Telugu-Series", "name": "Telugu - Series", "extra": [{ "name": "skip", "isRequired": false }] }
     ],
     resources: ['catalog'],
     types: ['movie', 'series'],
@@ -71,8 +74,8 @@ async function prefetchData() {
 async function refreshCatalogData() {
     try {
         await Promise.all([
-            fetchAndCacheGlobalData("movie"),
-            fetchAndCacheGlobalData("series")
+            fetchAndCacheGlobalData("movie", true),
+            fetchAndCacheGlobalData("series", true)
         ]);
     } catch (error) {
         console.error(`${getPKTTime()} - Error Refreshing Global Catalog Data:`, error.message);
@@ -87,7 +90,7 @@ prefetchData().then(() => {
 });
 
 // Function to fetch data with pagination support
-async function fetchBingedData(type, start = 0, length = 500, retries = 3, delay = 5000) {
+async function fetchBingedData(type, language, start = 0, length = 500, retries = 3, delay = 5000) {
     const url = 'https://www.binged.com/wp-admin/admin-ajax.php';
     const body = new URLSearchParams({
         'filters[category][]': type === 'movie' ? 'Film' : type === 'series' ? 'Tv show' : [],
@@ -155,7 +158,7 @@ async function getImdbId(title, type) {
         // Match based on type
         const result = data.d.find(item => {
             if (type === 'movie') return item.qid === 'movie';
-            if (type === 'series') return item.q === 'TV series' || item.q === 'TV mini-series';
+            if (type === 'series' ) return item.q === 'TV series' || item.q === 'TV mini-series';
             return false; // Fallback for unexpected type
         });
         return result && result.id ? result.id : null;
@@ -198,10 +201,52 @@ async function fetchAndCacheGlobalData(type, isInitialFetch = false, initialFetc
     const specialRpdbCacheKey = specialRpdbKey ? `global-${type}-rpdb-${specialRpdbKey}` : null;
 
     try {
-        const fetchLimit = isInitialFetch ? initialFetchLimit : refreshFetchLimit;
+//        const fetchLimit = isInitialFetch ? initialFetchLimit : refreshFetchLimit;
+        const fetchLimit = 10;
         //console.log(`${getPKTTime()} - Fetching ${isInitialFetch ? 'All' : 'Latest'} Data For ${cacheKey}...`);
-        const rawData = await fetchBingedData(type, 0, fetchLimit);
-        const newMetas = await processRawData(rawData.data, type);
+//        const rawData = await fetchBingedData(type, 0, fetchLimit);
+//        const newMetas = await processRawData(rawData.data, type);
+
+        if (type === 'movie-series') {
+            // Fetch and process movies and series separately
+            const [movieData, seriesData] = await Promise.all([
+                fetchBingedData('movie', 0, fetchLimit),
+                fetchBingedData('series', 0, fetchLimit)
+            ]);
+
+            const [movieMetas, seriesMetas] = await Promise.all([
+                processRawData(movieData.data, 'movie'),
+                processRawData(seriesData.data, 'series')
+            ]);
+
+            // Combine the processed metas
+            newMetas = [...movieMetas, ...seriesMetas];
+
+            // Filter metas to keep only those with 'Telugu' in their languages array
+            newMetas = newMetas.filter(meta => meta.languages && meta.languages.includes('Telugu'));
+
+            // Sort by releaseInfo in descending order
+            newMetas.sort((a, b) => {
+                const dateA = new Date(a.releaseInfo).getTime();
+                const dateB = new Date(b.releaseInfo).getTime();
+                return dateB - dateA; // Newest first
+            });
+            //console.log(newMetas);
+        } else {
+            // Fetch and process data for the specified type
+            const rawData = await fetchBingedData(type, 0, fetchLimit);
+            newMetas = await processRawData(rawData.data, type);
+
+            // Filter metas to keep only those with 'Telugu' in their languages array
+            newMetas = newMetas.filter(meta => meta.languages && meta.languages.includes('Telugu'));
+
+            // Sort by releaseInfo in descending order
+            newMetas.sort((a, b) => {
+                const dateA = new Date(a.releaseInfo).getTime();
+                const dateB = new Date(b.releaseInfo).getTime();
+                return dateB - dateA; // Newest first
+            });
+        }
 
         // Cache regular data
         if (isInitialFetch) {
@@ -304,7 +349,68 @@ function mergeNewData(existingData, newMetas) {
     ];
 }
 
-// Helper function to process raw data into metas
+// File-based caching for release dates
+const cacheFilePath = path.join(__dirname, 'releaseDateCache.json');
+
+// Load cache from file
+function loadCache() {
+    if (fs.existsSync(cacheFilePath)) {
+        try {
+            const data = fs.readFileSync(cacheFilePath, 'utf-8');
+            return JSON.parse(data);
+        } catch (error) {
+            console.error(`${getPKTTime()} - Failed to load cache:`, error.message);
+        }
+    }
+    return {};
+}
+
+// Save cache to file
+function saveCache(cache) {
+    try {
+        fs.writeFileSync(cacheFilePath, JSON.stringify(cache, null, 2), 'utf-8');
+    } catch (error) {
+        console.error(`${getPKTTime()} - Failed to save cache:`, error.message);
+    }
+}
+
+const releaseDateCache = loadCache();
+
+// Function to fetch release date from TMDB
+async function getReleaseDateFromTMDB(imdbId) {
+    if (releaseDateCache[imdbId]) {
+        return releaseDateCache[imdbId]; // Return cached release date
+    }
+
+    const options = {
+        method: 'GET',
+        headers: {
+            accept: 'application/json',
+            Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI5MTk2MDVmZDU2N2JiZmZjZjc2NDkyYTAzZWI0ZDUyNyIsIm5iZiI6MTc1OTIwMDI5NS43MjYsInN1YiI6IjY4ZGI0NDI3OTUwYTUxMTEwYWM3NmJmMSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.s-mH0tfo-jHHKm1CG8zqAOOJoIG2em4qTY0-cxH9Myc'
+        }
+    };
+
+    try {
+        const response = await fetch(`https://api.themoviedb.org/3/find/${imdbId}?external_source=imdb_id`, options);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch release date: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const releaseDate = data?.movie_results?.[0]?.release_date || data?.tv_results?.[0]?.first_air_date;
+
+        if (releaseDate) {
+            releaseDateCache[imdbId] = releaseDate; // Cache the release date
+            saveCache(releaseDateCache); // Save cache to file
+        }
+
+        return releaseDate || null;
+    } catch (error) {
+        console.error(`${getPKTTime()} - Error fetching release date from TMDB for IMDb ID ${imdbId}:`, error.message);
+        return null;
+    }
+}
+
+// Modify processRawData to include release date from TMDB
 async function processRawData(rawData, type) {
     const imdbPromises = rawData.map(item => getImdbId(item.title).catch(() => null));
     const imdbResults = await Promise.allSettled(imdbPromises);
@@ -314,17 +420,35 @@ async function processRawData(rawData, type) {
     );
     const metadataResults = await Promise.allSettled(metadataPromises);
 
+    const releaseDatePromises = imdbResults.map((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+            return async () => {
+                await new Promise(resolve => setTimeout(resolve, 100)); // 10 requests per second
+                return getReleaseDateFromTMDB(result.value);
+            };
+        }
+        return null;
+    });
+
+    const releaseDateResults = [];
+    for (let i = 0; i < releaseDatePromises.length; i += 10) {
+        const batch = releaseDatePromises.slice(i, i + 10).filter(Boolean);
+        const batchResults = await Promise.all(batch.map(fn => fn()));
+        releaseDateResults.push(...batchResults);
+    }
+
     return Promise.all(
         rawData.map(async (item, index) => {
             const imdbId = imdbResults[index]?.status === 'fulfilled' ? imdbResults[index].value : null;
             const meta = metadataResults[index]?.status === 'fulfilled' ? metadataResults[index].value : null;
+            const releaseDate = releaseDateResults[index];
             const id = imdbId || `binged:${item.id}`;
 
             let poster = imdbId ? `https://live.metahub.space/poster/small/${imdbId}/img` : item['big-image'];
             let background = imdbId ? `https://live.metahub.space/background/medium/${imdbId}/img` : item['big-image'];
 
             const [posterAvailable] = await Promise.all([isUrlAvailable(poster)]);
-            if (!posterAvailable) poster = item['big-image']
+            if (!posterAvailable) poster = item['big-image'];
 
             return {
                 id,
@@ -335,7 +459,7 @@ async function processRawData(rawData, type) {
                 background,
                 description: meta?.description || `${decodeTitle(item.title)} (${item['release-year']}) - ${item.genre}`,
                 recommendation: item.recommendation || "",
-                releaseInfo: item['release-year'] ? `${item['release-year']}` : (item['streaming-date'] || "Unknown"),
+                releaseInfo: item['streaming-date'] || releaseDate || (item['release-year'] ? `${item['release-year']}` : "Unknown"),
                 genres: meta?.genres || item.genre.split(', '),
                 languages: item.languages ? item.languages.split(', ') : [],
                 cast: meta?.cast || [],
@@ -363,9 +487,9 @@ async function validateRPDBKey(rpdbKey) {
 
 // Define catalog handler
 builder.defineCatalogHandler(async (args) => {
-    const type = args.type;
-
-    if (type !== 'movie' && type !== 'series') {
+    let type = args.type;
+    if (typeof type !== 'string') {
+        console.error(`${getPKTTime()} - Invalid type received:`, type);
         return { metas: [] };
     }
 
@@ -373,7 +497,9 @@ builder.defineCatalogHandler(async (args) => {
     const selectedLanguage = args.extra?.genre;
     const selectedRecommendation = args.extra?.recommendation;
     const skip = parseInt(args.extra?.skip) || 0; // Handle pagination skip
-    const limit = 40; // Set your desired limit for items per page
+    const limit = 50; // Set your desired limit for items per page
+
+    console.log(`${getPKTTime()} - Received skip: ${skip}, limit: ${limit}`);
 
     // Step 1: Determine which cache to use with logging
     const globalCacheKey = `global-${type}`;
@@ -453,4 +579,4 @@ builder.defineCatalogHandler(async (args) => {
     return { metas: metasToReturn };
 });
 
-serveHTTP(builder.getInterface(), { port: 7000, cacheMaxAge: 3600, staleRevalidate: 3600, staleError: 3600 });
+serveHTTP(builder.getInterface(), { port: 8000, cacheMaxAge: 3600, staleRevalidate: 3600, staleError: 3600, cors: true });
